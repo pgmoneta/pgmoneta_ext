@@ -1,0 +1,5 @@
+# pgmoneta_ext extension
+comment = 'pgmoneta extension for delta backup'
+default_version = '0.1.0'
+module_pathname = '$libdir/pgmoneta_ext'
+relocatable = true
