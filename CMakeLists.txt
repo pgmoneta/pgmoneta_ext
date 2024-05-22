@@ -57,5 +57,31 @@ endif()
 
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/")
 
+set(generation TRUE)
+
+find_package(Pandoc)
+if (PANDOC_FOUND)
+  message(STATUS "pandoc found")
+else ()
+  set(generation FALSE)
+  message(STATUS "pandoc needed. The generation process will be skipped.")
+endif()
+
+find_package(Pdflatex)
+if (PDFLATEX_FOUND)
+  message(STATUS "pdflatex found")
+else ()
+  set(generation FALSE)
+  message(STATUS "pdflatex needed. The generation process will be skipped.")
+endif()
+
+find_package(PsqlDevel)
+if (PSQLDEVEL_FOUND)
+  message(STATUS "Found PostgreSQL development package")
+else()
+  message(FATAL_ERROR "PostgreSQL development package not found")
+endif()
+
+add_subdirectory(doc)
 add_subdirectory(src)
 add_subdirectory(sql)

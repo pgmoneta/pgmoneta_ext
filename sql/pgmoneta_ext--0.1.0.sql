@@ -1,3 +1,3 @@
-CREATE FUNCTION pgmoneta_version_ext() RETURNS text 
+CREATE FUNCTION pgmoneta_ext_version() RETURNS text 
 AS 'MODULE_PATHNAME' 
 LANGUAGE C STRICT;

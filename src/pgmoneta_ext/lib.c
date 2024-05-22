@@ -37,10 +37,10 @@
 
 PG_MODULE_MAGIC;
 
-PG_FUNCTION_INFO_V1(pgmoneta_version_ext);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_version);
 
 Datum
-pgmoneta_version_ext(PG_FUNCTION_ARGS)
+pgmoneta_ext_version(PG_FUNCTION_ARGS)
 {
    Datum version;
    char v[1024];

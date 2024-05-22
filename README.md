@@ -29,14 +29,43 @@
 * [PostgreSQL](https://www.postgresql.org)
 
 ```sh
-dnf install git gcc cmake make postgresql-devel
+dnf install git gcc cmake make postgresql-server-devel
 ```
 
 Alternative [clang 8+](https://clang.llvm.org/) can be used.
 
+## Build
+
+### Release build
+
+The following commands will install `pgmoneta_ext`.
+
+```sh
+git clone https://github.com/pgmoneta/pgmoneta_ext
+cd pgmoneta_ext
+mkdir build
+cd build
+cmake ..
+make
+sudo make install
+```
+
+### Debug build
+
+The following commands will create a `DEBUG` version of `pgmoneta_ext`.
+
+```sh
+git clone https://github.com/pgmoneta/pgmoneta_ext
+cd pgmoneta_ext
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+make
+```
+
 ## Contributing
 
-Contributions to `pgmoneta` are managed on [GitHub.com](https://github.com/pgmoneta/pgmoneta/)
+Contributions to `pgmoneta_ext` are managed on [GitHub.com](https://github.com/pgmoneta/pgmoneta_ext)
 
 * [Ask a question](https://github.com/pgmoneta/pgmoneta_ext/discussions)
 * [Raise an issue](https://github.com/pgmoneta/pgmoneta_ext/issues)
