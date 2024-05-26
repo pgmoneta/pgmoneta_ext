@@ -12,6 +12,7 @@
   [cmake]: https://cmake.org
   [make]: https://www.gnu.org/software/make/
   [clang]: https://clang.llvm.org/
+  [pandoctemplate]: https://github.com/Wandmalfarbe/pandoc-latex-template
 
 <!-- Contributing -->
   [ask]: https://github.com/pgmoneta/pgmoneta_ext/discussions

@@ -37,9 +37,11 @@ sudo make install
 
 ## Check
 
-Make sure that `pgmoneta_ext` is installed. You should use `PostgreSQL` to test the extension functions.
+Make sure that `pgmoneta_ext` is installed. You should use `PostgreSQL` to test the extension functions. Since creating an extension requires the role to have superuser privileges, it is advisable to use the default `postgres` role to check if `pgmoneta_ext` has been installed successfully. After creating the extension, you can use a non-superuser role to test it.
 
 ``` sh
+sudo su -
+su - postgres
 psql
 CREATE DATABASE testdb;
 \c testdb

@@ -29,15 +29,29 @@
 
 /* pgmoneta */
 #include <pgmoneta_ext.h>
+#include <utils.h>
 
 /* PostgreSQL */
 #include "postgres.h"
+#include "access/htup_details.h"
+#include "access/xlog.h"
+#include "access/xlog_internal.h"
+#include "catalog/pg_authid.h"
+#include "catalog/pg_type.h"
 #include "fmgr.h"
+#include "funcapi.h"
+#include "miscadmin.h"
+#include "utils/acl.h"
 #include "utils/builtins.h"
+#include "utils/elog.h"
+#include "utils/errcodes.h"
+#include "utils/lsyscache.h"
+#include "utils/syscache.h"
 
 PG_MODULE_MAGIC;
 
 PG_FUNCTION_INFO_V1(pgmoneta_ext_version);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_switch_wal);
 
 Datum
 pgmoneta_ext_version(PG_FUNCTION_ARGS)
@@ -51,4 +65,54 @@ pgmoneta_ext_version(PG_FUNCTION_ARGS)
    version = CStringGetTextDatum(v);
 
    PG_RETURN_DATUM(version);
+}
+
+Datum
+pgmoneta_ext_switch_wal(PG_FUNCTION_ARGS)
+{
+   Datum values[2];
+   Datum result;
+   HeapTuple tuple;
+   Oid roleid;
+   TupleDesc tupdesc;
+   XLogRecPtr recptr;
+   bool nulls[2];
+   char str_res[1024];
+   int is_superuser;
+
+   memset(nulls, 0, sizeof(nulls));
+
+   roleid = GetUserId();
+
+   is_superuser = pgmoneta_ext_check_privilege(roleid);
+
+   if (!is_superuser)
+   {
+      // Request to switch WAL with mark_unimportant set to false.
+      recptr = RequestXLogSwitch(false);
+
+      values[0] = BoolGetDatum(true);
+      // Format the WAL position
+      snprintf(str_res, sizeof(str_res), "%X/%X", (uint32) (recptr >> 32), (uint32) recptr);
+      values[1] = CStringGetTextDatum(str_res);
+   }
+   else
+   {
+      ereport(LOG, errmsg_internal("pgmoneta_ext_switch_wal: Current role is not a superuser"));
+
+      values[0] = BoolGetDatum(false);
+      nulls[1] = true;
+   }
+
+   // Create a tuple descriptor for our result type
+   if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
+   {
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_switch_wal: Return type must be a row type"));
+   }
+
+   // Build the result tuple
+   tuple = heap_form_tuple(tupdesc, values, nulls);
+   result = HeapTupleGetDatum(tuple);
+
+   PG_RETURN_DATUM(result);
 }
