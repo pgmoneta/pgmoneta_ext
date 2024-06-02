@@ -39,14 +39,24 @@ extern "C" {
 #include "fmgr.h"
 
 /* system */
+#include <stdbool.h>
 
 /**
  * Check if the role has superuser privileges.
  * @param roleid The current role's ID
- * @return 0 upon success, otherwise 1
+ * @return The result
  */
-int
-pgmoneta_ext_check_privilege(Oid roleid);
+bool
+pgmoneta_ext_check_superuser(Oid roleid);
+
+/**
+ * Check if the role has specific role.
+ * @param roleid The current role's ID
+ * @param rolename Specific role name
+ * @return The result
+ */
+bool
+pgmoneta_ext_check_role(Oid roleid, const char* rolename);
 
 #ifdef __cplusplus
 }

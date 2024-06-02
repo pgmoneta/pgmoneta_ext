@@ -27,33 +27,37 @@
  *
  */
 
-/* pgmoneta */
+/* pgmoneta_ext */
 #include <utils.h>
 
 /* PostgreSQL */
 #include "access/htup_details.h"
 #include "catalog/pg_authid.h"
+#include "miscadmin.h"
+#include "utils/acl.h"
+#include "utils/builtins.h"
 #include "utils/elog.h"
 #include "utils/errcodes.h"
 #include "utils/relcache.h"
 #include "utils/syscache.h"
 
 /* system */
-#include <stdbool.h>
 
-int
-pgmoneta_ext_check_privilege(Oid roleid)
+bool
+pgmoneta_ext_check_superuser(Oid roleid)
 {
    bool is_superuser;
    HeapTuple roletuple;
    Form_pg_authid roleform;
 
+   is_superuser = false;
+
    // Fetch the role's tuple from pg_authid
    roletuple = SearchSysCache1(AUTHOID, ObjectIdGetDatum(roleid));
    if (!HeapTupleIsValid(roletuple))
    {
-      ereport(ERROR, errmsg_internal("pgmoneta_ext_switch_wal: Role with OID %u does not exist", roleid));
-      return 1;
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_check_superuser: Role with OID %u does not exist", roleid));
+      return false;
    }
 
    // Get the role's superuser attribute
@@ -64,5 +68,43 @@ pgmoneta_ext_check_privilege(Oid roleid)
    // Release the role tuple
    ReleaseSysCache(roletuple);
 
-   return !is_superuser;
+   return is_superuser;
+}
+
+bool
+pgmoneta_ext_check_role(Oid roleid, const char* rolename)
+{
+   bool is_success;
+   HeapTuple roletuple;
+   List* role_oids;
+   ListCell* cell;
+
+   is_success = false;
+
+   roletuple = SearchSysCache1(AUTHOID, ObjectIdGetDatum(roleid));
+   if (!HeapTupleIsValid(roletuple))
+   {
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_check_role: Role with OID %u does not exist", roleid));
+      return false;
+   }
+
+   // Get role OIDs of a given role name
+   Oid role_oid = get_role_oid(rolename, false);
+   role_oids = list_make1_oid(role_oid);
+
+   // Check if the role has the specific privilege
+   foreach (cell, role_oids)
+   {
+      Oid checkpoint_role_oid = lfirst_oid(cell);
+      if (is_member_of_role(roleid, checkpoint_role_oid))
+      {
+         is_success = true;
+         break;
+      }
+   }
+
+   ReleaseSysCache(roletuple);
+   list_free(role_oids);
+
+   return is_success;
 }
