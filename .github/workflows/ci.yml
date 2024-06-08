@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - main
+    - actions
+  pull_request:
+    branches:
+    - main
+
+jobs:
+  build-linux:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update system
+      run: sudo apt update -y
+    - name: Install dependencies
+      run: sudo apt install -y git gcc cmake make postgresql postgresql-server-dev-all
+    - name: Init database
+      run: |
+        version=$(pg_config --version | grep -Eo "[0-9]{1,2}" | head -1)
+        sudo -u postgres /usr/lib/postgresql/${version}/bin/initdb /tmp/pgsql
+    - name: Config postgres
+      run: |
+        sudo -u postgres sed -i 's/#password_encryption = scram-sha-256/password_encryption = scram-sha-256/' /tmp/pgsql/postgresql.conf
+        sudo -u postgres sed -i '/^host/d' /tmp/pgsql/pg_hba.conf
+        echo 'cat <<EOF >> /tmp/pgsql/pg_hba.conf
+        host    postgres         repl            127.0.0.1/32            scram-sha-256
+        host    postgres         repl            ::1/128                 scram-sha-256
+        host    replication      repl            127.0.0.1/32            scram-sha-256
+        host    replication      repl            ::1/128                 scram-sha-256
+        EOF
+        '| sudo -u postgres -s
+    - name: Setup postgres
+      run: |
+        version=$(pg_config --version | grep -Eo "[0-9]{1,2}" | head -1)
+        sudo -u postgres /usr/lib/postgresql/${version}/bin/pg_ctl start -D /tmp/pgsql
+        sudo -u postgres /usr/lib/postgresql/${version}/bin/psql -U postgres -c "CREATE ROLE repl WITH LOGIN REPLICATION PASSWORD 'secretpassword';"
+    - name: GCC/mkdir
+      run: mkdir build
+      working-directory: /home/runner/work/pgmoneta/pgmoneta_ext/
+    - name: GCC/cmake
+      run: export CC=/usr/bin/gcc && cmake -DCMAKE_BUILD_TYPE=Debug ..
+      working-directory: /home/runner/work/pgmoneta/pgmoneta_ext/build/
+    - name: GCC/make
+      run: make
+      working-directory: /home/runner/work/pgmoneta/pgmoneta_ext/build/
+    - name: rm -Rf
+      run: rm -Rf build/
+      working-directory: /home/runner/work/pgmoneta/pgmoneta_ext/
+    - name: Cleanup
+      run: |
+        version=$(pg_config --version | grep -Eo "[0-9]{1,2}" | head -1)
+        sudo -u postgres /usr/lib/postgresql/${version}/bin/pg_ctl stop -D /tmp/pgsql
