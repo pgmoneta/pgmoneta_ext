@@ -13,6 +13,7 @@
   [make]: https://www.gnu.org/software/make/
   [clang]: https://clang.llvm.org/
   [pandoctemplate]: https://github.com/Wandmalfarbe/pandoc-latex-template
+  [postgresqlrepo]: https://github.com/postgres/postgres
 
 <!-- Contributing -->
   [ask]: https://github.com/pgmoneta/pgmoneta_ext/discussions
@@ -23,3 +24,6 @@
   [star]: https://github.com/pgmoneta/pgmoneta_ext/stargazers
   [twitter]: https://twitter.com/pgmoneta/
   [license]: https://opensource.org/licenses/BSD-3-Clause
+
+<!-- doc/ -->
+  [developers]: https://github.com/pgmoneta/pgmoneta_ext/blob/main/doc/DEVELOPERS.md#developer-guide

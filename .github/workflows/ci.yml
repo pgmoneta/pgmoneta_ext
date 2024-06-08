@@ -10,49 +10,311 @@ on:
     - main
 
 jobs:
-  build-linux:
+  test-postgresql-13:
 
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
     - name: Update system
-      run: sudo apt update -y
+      run: sudo apt-get update -y
     - name: Install dependencies
-      run: sudo apt install -y git gcc cmake make postgresql postgresql-server-dev-all
-    - name: Init database
+      run: sudo apt-get install -y --no-install-recommends git gcc cmake make wget build-essential libreadline-dev zlib1g-dev flex bison libxml2-dev libxslt1-dev libssl-dev libxml2-utils xsltproc ccache pkg-config check
+    - name: Test PostgreSQL 13
       run: |
-        version=$(pg_config --version | grep -Eo "[0-9]{1,2}" | head -1)
-        sudo -u postgres /usr/lib/postgresql/${version}/bin/initdb /tmp/pgsql
-    - name: Config postgres
-      run: |
-        sudo -u postgres sed -i 's/#password_encryption = scram-sha-256/password_encryption = scram-sha-256/' /tmp/pgsql/postgresql.conf
-        sudo -u postgres sed -i '/^host/d' /tmp/pgsql/pg_hba.conf
-        echo 'cat <<EOF >> /tmp/pgsql/pg_hba.conf
+        set -e
+        install_postgresql() {
+          version=${1:-13}
+          git_repo="https://github.com/postgres/postgres.git"
+          cd /tmp
+          git clone --branch "REL_${version}_STABLE" --single-branch --depth 1 "$git_repo"
+          cd /tmp/postgres
+          ./configure --prefix=/usr/local/pgsql
+          make
+          sudo make install
+          sudo -u postgres /usr/local/pgsql/bin/initdb -D /tmp/pgsql-${version}
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile start
+          export PATH=/usr/local/pgsql/bin:$PATH
+          export LD_LIBRARY_PATH=/usr/local/pgsql/lib
+        }
+
+        config_postgresql(){
+          version=${1:-13}
+          sudo -u postgres sed -i 's/^#\s*password_encryption\s*=\s*\(md5\|scram-sha-256\)/password_encryption = scram-sha-256/' /tmp/pgsql-${version}/postgresql.conf
+          sudo -u postgres sed -i '/^host/d' /tmp/pgsql-${version}/pg_hba.conf
+          sudo -u postgres bash -c "cat <<EOF >> /tmp/pgsql-${version}/pg_hba.conf
         host    postgres         repl            127.0.0.1/32            scram-sha-256
         host    postgres         repl            ::1/128                 scram-sha-256
         host    replication      repl            127.0.0.1/32            scram-sha-256
         host    replication      repl            ::1/128                 scram-sha-256
-        EOF
-        '| sudo -u postgres -s
-    - name: Setup postgres
+        EOF"
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile restart
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "CREATE ROLE repl WITH LOGIN REPLICATION PASSWORD 'secretpassword';"
+        }
+
+        install_pgmoneta_ext() {
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/
+          mkdir build
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/build/
+          cmake ..
+          make
+          sudo make install
+        }
+
+        create_pgmoneta_ext(){
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "DROP EXTENSION IF EXISTS pgmoneta_ext;"
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "CREATE EXTENSION pgmoneta_ext;"
+        }
+
+        test_pgmoneta_ext(){
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/test
+          mkdir build
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/test/build
+          cmake ..
+          make
+          export PGPASSWORD='secretpassword'
+          ./pgmoneta_ext_test
+          unset PGPASSWORD
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "DROP ROLE repl;"
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile stop
+        }
+
+        echo "******************* START PostgreSQL 13 ******************"
+        install_postgresql 13
+        config_postgresql 13
+        install_pgmoneta_ext
+        create_pgmoneta_ext
+        test_pgmoneta_ext
+        echo "******************* PostgreSQL 13 Success ******************"
+
+  test-postgresql-14:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update system
+      run: sudo apt-get update -y
+    - name: Install dependencies
+      run: sudo apt-get install -y --no-install-recommends git gcc cmake make wget build-essential libreadline-dev zlib1g-dev flex bison libxml2-dev libxslt1-dev libssl-dev libxml2-utils xsltproc ccache pkg-config check
+    - name: Test PostgreSQL 14
       run: |
-        version=$(pg_config --version | grep -Eo "[0-9]{1,2}" | head -1)
-        sudo -u postgres /usr/lib/postgresql/${version}/bin/pg_ctl start -D /tmp/pgsql
-        sudo -u postgres /usr/lib/postgresql/${version}/bin/psql -U postgres -c "CREATE ROLE repl WITH LOGIN REPLICATION PASSWORD 'secretpassword';"
-    - name: GCC/mkdir
-      run: mkdir build
-      working-directory: /home/runner/work/pgmoneta/pgmoneta_ext/
-    - name: GCC/cmake
-      run: export CC=/usr/bin/gcc && cmake -DCMAKE_BUILD_TYPE=Debug ..
-      working-directory: /home/runner/work/pgmoneta/pgmoneta_ext/build/
-    - name: GCC/make
-      run: make
-      working-directory: /home/runner/work/pgmoneta/pgmoneta_ext/build/
-    - name: rm -Rf
-      run: rm -Rf build/
-      working-directory: /home/runner/work/pgmoneta/pgmoneta_ext/
-    - name: Cleanup
+        set -e
+
+        install_postgresql() {
+          version=${1:-13}
+          git_repo="https://github.com/postgres/postgres.git"
+          cd /tmp
+          git clone --branch "REL_${version}_STABLE" --single-branch --depth 1 "$git_repo"
+          cd /tmp/postgres
+          ./configure --prefix=/usr/local/pgsql
+          make
+          sudo make install
+          sudo -u postgres /usr/local/pgsql/bin/initdb -D /tmp/pgsql-${version}
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile start
+          export PATH=/usr/local/pgsql/bin:$PATH
+          export LD_LIBRARY_PATH=/usr/local/pgsql/lib
+        }
+
+        config_postgresql(){
+          version=${1:-13}
+          sudo -u postgres sed -i 's/^#\s*password_encryption\s*=\s*\(md5\|scram-sha-256\)/password_encryption = scram-sha-256/' /tmp/pgsql-${version}/postgresql.conf
+          sudo -u postgres sed -i '/^host/d' /tmp/pgsql-${version}/pg_hba.conf
+          sudo -u postgres bash -c "cat <<EOF >> /tmp/pgsql-${version}/pg_hba.conf
+        host    postgres         repl            127.0.0.1/32            scram-sha-256
+        host    postgres         repl            ::1/128                 scram-sha-256
+        host    replication      repl            127.0.0.1/32            scram-sha-256
+        host    replication      repl            ::1/128                 scram-sha-256
+        EOF"
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile restart
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "CREATE ROLE repl WITH LOGIN REPLICATION PASSWORD 'secretpassword';"
+        }
+
+        install_pgmoneta_ext() {
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/
+          mkdir build
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/build/
+          cmake ..
+          make
+          sudo make install
+        }
+
+        create_pgmoneta_ext(){
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "DROP EXTENSION IF EXISTS pgmoneta_ext;"
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "CREATE EXTENSION pgmoneta_ext;"
+        }
+
+        test_pgmoneta_ext(){
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/test
+          mkdir build
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/test/build
+          cmake ..
+          make
+          export PGPASSWORD='secretpassword'
+          ./pgmoneta_ext_test
+          unset PGPASSWORD
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "DROP ROLE repl;"
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile stop
+        }
+
+        echo "******************* START PostgreSQL 14 ******************"
+        install_postgresql 14
+        config_postgresql 14
+        install_pgmoneta_ext
+        create_pgmoneta_ext
+        test_pgmoneta_ext
+        echo "******************* PostgreSQL 14 Success ******************"
+
+  test-postgresql-15:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update system
+      run: sudo apt-get update -y
+    - name: Install dependencies
+      run: sudo apt-get install -y --no-install-recommends git gcc cmake make wget build-essential libreadline-dev zlib1g-dev flex bison libxml2-dev libxslt1-dev libssl-dev libxml2-utils xsltproc ccache pkg-config check
+    - name: Test PostgreSQL 15
       run: |
-        version=$(pg_config --version | grep -Eo "[0-9]{1,2}" | head -1)
-        sudo -u postgres /usr/lib/postgresql/${version}/bin/pg_ctl stop -D /tmp/pgsql
+        set -e
+        install_postgresql() {
+          version=${1:-13}
+          git_repo="https://github.com/postgres/postgres.git"
+          cd /tmp
+          git clone --branch "REL_${version}_STABLE" --single-branch --depth 1 "$git_repo"
+          cd /tmp/postgres
+          ./configure --prefix=/usr/local/pgsql
+          make
+          sudo make install
+          sudo -u postgres /usr/local/pgsql/bin/initdb -D /tmp/pgsql-${version}
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile start
+          export PATH=/usr/local/pgsql/bin:$PATH
+          export LD_LIBRARY_PATH=/usr/local/pgsql/lib
+        }
+
+        config_postgresql(){
+          version=${1:-13}
+          sudo -u postgres sed -i 's/^#\s*password_encryption\s*=\s*\(md5\|scram-sha-256\)/password_encryption = scram-sha-256/' /tmp/pgsql-${version}/postgresql.conf
+          sudo -u postgres sed -i '/^host/d' /tmp/pgsql-${version}/pg_hba.conf
+          sudo -u postgres bash -c "cat <<EOF >> /tmp/pgsql-${version}/pg_hba.conf
+        host    postgres         repl            127.0.0.1/32            scram-sha-256
+        host    postgres         repl            ::1/128                 scram-sha-256
+        host    replication      repl            127.0.0.1/32            scram-sha-256
+        host    replication      repl            ::1/128                 scram-sha-256
+        EOF"
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile restart
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "CREATE ROLE repl WITH LOGIN REPLICATION PASSWORD 'secretpassword';"
+        }
+
+        install_pgmoneta_ext() {
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/
+          mkdir build
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/build/
+          cmake ..
+          make
+          sudo make install
+        }
+
+        create_pgmoneta_ext(){
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "DROP EXTENSION IF EXISTS pgmoneta_ext;"
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "CREATE EXTENSION pgmoneta_ext;"
+        }
+
+        test_pgmoneta_ext(){
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/test
+          mkdir build
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/test/build
+          cmake ..
+          make
+          export PGPASSWORD='secretpassword'
+          ./pgmoneta_ext_test
+          unset PGPASSWORD
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "DROP ROLE repl;"
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile stop
+        }
+
+        echo "******************* START PostgreSQL 15 ******************"
+        install_postgresql 15
+        config_postgresql 15
+        install_pgmoneta_ext
+        create_pgmoneta_ext
+        test_pgmoneta_ext
+        echo "******************* PostgreSQL 15 Success ******************"
+
+  test-postgresql-16:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update system
+      run: sudo apt-get update -y
+    - name: Install dependencies
+      run: sudo apt-get install -y --no-install-recommends git gcc cmake make wget build-essential libreadline-dev zlib1g-dev flex bison libxml2-dev libxslt1-dev libssl-dev libxml2-utils xsltproc ccache pkg-config check
+    - name: Test PostgreSQL 16
+      run: |
+        set -e
+        install_postgresql() {
+          version=${1:-13}
+          git_repo="https://github.com/postgres/postgres.git"
+          cd /tmp
+          git clone --branch "REL_${version}_STABLE" --single-branch --depth 1 "$git_repo"
+          cd /tmp/postgres
+          ./configure --prefix=/usr/local/pgsql
+          make
+          sudo make install
+          sudo -u postgres /usr/local/pgsql/bin/initdb -D /tmp/pgsql-${version}
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile start
+          export PATH=/usr/local/pgsql/bin:$PATH
+          export LD_LIBRARY_PATH=/usr/local/pgsql/lib
+        }
+
+        config_postgresql(){
+          version=${1:-13}
+          sudo -u postgres sed -i 's/^#\s*password_encryption\s*=\s*\(md5\|scram-sha-256\)/password_encryption = scram-sha-256/' /tmp/pgsql-${version}/postgresql.conf
+          sudo -u postgres sed -i '/^host/d' /tmp/pgsql-${version}/pg_hba.conf
+          sudo -u postgres bash -c "cat <<EOF >> /tmp/pgsql-${version}/pg_hba.conf
+        host    postgres         repl            127.0.0.1/32            scram-sha-256
+        host    postgres         repl            ::1/128                 scram-sha-256
+        host    replication      repl            127.0.0.1/32            scram-sha-256
+        host    replication      repl            ::1/128                 scram-sha-256
+        EOF"
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile restart
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "CREATE ROLE repl WITH LOGIN REPLICATION PASSWORD 'secretpassword';"
+        }
+
+        install_pgmoneta_ext() {
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/
+          mkdir build
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/build/
+          cmake ..
+          make
+          sudo make install
+        }
+
+        create_pgmoneta_ext(){
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "DROP EXTENSION IF EXISTS pgmoneta_ext;"
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "CREATE EXTENSION pgmoneta_ext;"
+        }
+
+        test_pgmoneta_ext(){
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/test
+          mkdir build
+          cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/test/build
+          cmake ..
+          make
+          export PGPASSWORD='secretpassword'
+          ./pgmoneta_ext_test
+          unset PGPASSWORD
+          sudo -u postgres /usr/local/pgsql/bin/psql -U postgres -c "DROP ROLE repl;"
+          sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile stop
+        }
+
+        echo "******************* START PostgreSQL 16 ******************"
+        install_postgresql 16
+        config_postgresql 16
+        install_pgmoneta_ext
+        create_pgmoneta_ext
+        test_pgmoneta_ext
+        echo "******************* PostgreSQL 16 Success ******************"
