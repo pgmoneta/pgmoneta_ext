@@ -41,6 +41,10 @@ extern "C" {
 /* system */
 #include <stdbool.h>
 
+#define PRIVILEDGE_DEFAULT            1 << 0  // 001
+#define PRIVILEDGE_PG_CHECKPOINT      1 << 1  // 010
+#define PRIVILEDGE_SUPERUSER          1 << 2  // 100
+
 /**
  * Check if the role has superuser privileges.
  * @param roleid The current role's ID
@@ -57,6 +61,14 @@ pgmoneta_ext_check_superuser(Oid roleid);
  */
 bool
 pgmoneta_ext_check_role(Oid roleid, const char* rolename);
+
+/**
+ * Get a bit mask of the privileges of the role accessing.
+ * @param roleid The current role's ID
+ * @return The result
+ */
+int
+pgmoneta_ext_check_privilege(Oid roleid);
 
 #ifdef __cplusplus
 }

@@ -108,3 +108,27 @@ pgmoneta_ext_check_role(Oid roleid, const char* rolename)
 
    return is_success;
 }
+
+int
+pgmoneta_ext_check_privilege(Oid roleid)
+{
+   int privileges = 0;
+
+   if (pgmoneta_ext_check_superuser(roleid))
+   {
+      privileges |= PRIVILEDGE_SUPERUSER;
+   }
+
+#if PG_VERSION_NUM >= 150000
+   bool is_pg_checkpoint = pgmoneta_ext_check_role(roleid, "pg_checkpoint");
+
+   if (is_pg_checkpoint)
+   {
+      privileges |= PRIVILEDGE_PG_CHECKPOINT;
+   }
+#endif
+
+   privileges |= PRIVILEDGE_DEFAULT;
+
+   return privileges;
+}

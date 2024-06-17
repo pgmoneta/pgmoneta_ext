@@ -79,15 +79,15 @@ pgmoneta_ext_switch_wal(PG_FUNCTION_ARGS)
    XLogRecPtr recptr;
    bool nulls[2];
    char str_res[1024];
-   bool is_superuser;
+   int privileges;
 
    memset(nulls, 0, sizeof(nulls));
 
    roleid = GetUserId();
 
-   is_superuser = pgmoneta_ext_check_superuser(roleid);
+   privileges = pgmoneta_ext_check_privilege(roleid);
 
-   if (is_superuser)
+   if (privileges & PRIVILEDGE_SUPERUSER)
    {
       // Request to switch WAL with mark_unimportant set to false.
       recptr = RequestXLogSwitch(false);
@@ -131,23 +131,16 @@ pgmoneta_ext_checkpoint(PG_FUNCTION_ARGS)
    Oid roleid;
    TupleDesc tupdesc;
    bool nulls[2];
-   bool is_superuser;
-   bool is_pg_checkpoint;
    char cp[1024];
+   int privileges;
 
    memset(nulls, 0, sizeof(nulls));
    memset(&cp, 0, sizeof(cp));
-   is_superuser = false;
-   is_pg_checkpoint = false;
 
    roleid = GetUserId();
-   is_superuser = pgmoneta_ext_check_superuser(roleid);
+   privileges = pgmoneta_ext_check_privilege(roleid);
 
-#if PG_VERSION_NUM >= 150000
-   is_pg_checkpoint = pgmoneta_ext_check_role(roleid, "pg_checkpoint");
-#endif
-
-   if (is_superuser || is_pg_checkpoint)
+   if (privileges & (PRIVILEDGE_PG_CHECKPOINT | PRIVILEDGE_SUPERUSER))
    {
       // Perform the checkpoint
       RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_WAIT | CHECKPOINT_FORCE);
