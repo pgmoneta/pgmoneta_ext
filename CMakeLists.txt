@@ -17,6 +17,9 @@ endif(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
 
 project(pgmoneta_ext VERSION ${VERSION_STRING} LANGUAGES  C)
 
+include(CTest)
+enable_testing()
+
 set(CPACK_PACKAGE_VERSION_MAJOR ${VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${VERSION_PATCH})
@@ -58,6 +61,29 @@ endif()
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/")
 
 set(generation TRUE)
+set(check TRUE)
+set(container FALSE)
+
+find_package(Check)
+if (CHECK_FOUND)
+  message(STATUS "check found")
+  add_library(Check::check SHARED IMPORTED)
+  set_target_properties(Check::check PROPERTIES
+    IMPORTED_LOCATION ${CHECK_LIBRARY}
+    INTERFACE_INCLUDE_DIRECTORIES ${CHECK_INCLUDE_DIR})
+else ()
+  set(check FALSE)
+  message(STATUS "check needed. The test suite process will be skipped.")
+endif()
+
+find_package(Docker)
+find_package(Podman)
+if (DOCKER_FOUND OR PODMAN_FOUND)
+  set(container TRUE)
+  message(STATUS "Docker or podman found")
+else ()
+  message(STATUS "Docker or podman needed. The test suite will be skipped.")
+endif()
 
 find_package(Pandoc)
 if (PANDOC_FOUND)
@@ -85,3 +111,4 @@ endif()
 add_subdirectory(doc)
 add_subdirectory(src)
 add_subdirectory(sql)
+add_subdirectory(test)

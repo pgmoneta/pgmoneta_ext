@@ -25,45 +25,43 @@
 #  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
+if (check)
+  set(SOURCES
+    lib/pgmoneta_ext_test.c
+    lib/runner.c
+  )
 
-cmake_minimum_required(VERSION 3.14)
+  add_executable(pgmoneta_ext_test ${SOURCES})
 
-project(pgmoneta_ext_test C)
-
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
-
-find_library(CHECK_LIBRARY check PATHS /usr/lib64)
-find_path(CHECK_INCLUDE_DIR check.h PATHS /usr/include)
-
-if(CHECK_LIBRARY AND CHECK_INCLUDE_DIR)
-    add_library(Check::check SHARED IMPORTED)
-    set_target_properties(Check::check PROPERTIES
-        IMPORTED_LOCATION ${CHECK_LIBRARY}
-        INTERFACE_INCLUDE_DIRECTORIES ${CHECK_INCLUDE_DIR})
-else()
-    message(FATAL_ERROR "Check library not found")
-endif()
-
-if(EXISTS "/etc/debian_version")
-    include_directories(/usr/include/subunit)
-endif()
-
-set(SOURCES
-    pgmoneta_ext_test.c
-    runner.c
-)
-
-add_executable(pgmoneta_ext_test ${SOURCES})
-
-if(EXISTS "/etc/debian_version")
+  if(EXISTS "/etc/debian_version")
     target_link_libraries(pgmoneta_ext_test Check::check subunit pthread rt m)
-else()
+  else()
     target_link_libraries(pgmoneta_ext_test Check::check pthread rt m)
-endif()
+  endif()
 
-
-add_custom_target(custom_clean
+  add_custom_target(custom_clean
     COMMAND ${CMAKE_COMMAND} -E remove -f *.o pgmoneta_ext_test
     COMMENT "Cleaning up..."
-)
+  )
+endif()
+
+if(container)
+
+  add_test(test_version_13_rocky9 "${CMAKE_CURRENT_SOURCE_DIR}/../test/testsuite.sh" "${CMAKE_CURRENT_SOURCE_DIR}/../test" "Dockerfile.rocky9" 13)
+  add_test(test_version_14_rocky9 "${CMAKE_CURRENT_SOURCE_DIR}/../test/testsuite.sh" "${CMAKE_CURRENT_SOURCE_DIR}/../test" "Dockerfile.rocky9" 14)
+  add_test(test_version_15_rocky9 "${CMAKE_CURRENT_SOURCE_DIR}/../test/testsuite.sh" "${CMAKE_CURRENT_SOURCE_DIR}/../test" "Dockerfile.rocky9" 15)
+  add_test(test_version_16_rocky9 "${CMAKE_CURRENT_SOURCE_DIR}/../test/testsuite.sh" "${CMAKE_CURRENT_SOURCE_DIR}/../test" "Dockerfile.rocky9" 16)
+
+  set(failRegex 
+      "Failures: [1-9][0-9]*"
+  )
+
+  set_property (TEST test_version_13_rocky9
+                PROPERTY FAIL_REGULAR_EXPRESSION "${failRegex}")
+  set_property (TEST test_version_14_rocky9
+                PROPERTY FAIL_REGULAR_EXPRESSION "${failRegex}")
+  set_property (TEST test_version_15_rocky9
+                PROPERTY FAIL_REGULAR_EXPRESSION "${failRegex}")        
+  set_property (TEST test_version_16_rocky9
+                PROPERTY FAIL_REGULAR_EXPRESSION "${failRegex}")
+endif()
