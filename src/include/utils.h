@@ -37,16 +37,23 @@ extern "C" {
 /* PostgreSQL */
 #include <postgres.h>
 #include <fmgr.h>
+#include <funcapi.h>
 #include <nodes/pg_list.h>
+#include <utils/array.h>
 
 /* system */
+#include <dirent.h>
+#include <unistd.h>
 #include <stdbool.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
-#define PRIVILEDGE_DEFAULT            1 << 0  // 001
-#define PRIVILEDGE_PG_CHECKPOINT      1 << 1  // 010
-#define PRIVILEDGE_SUPERUSER          1 << 2  // 100
+#define PRIVILEGE_DEFAULT              1 << 0  // 001
+#define PRIVILEGE_PG_CHECKPOINT        1 << 1  // 010
+#define PRIVILEGE_SUPERUSER            1 << 2  // 100
 
-#define MAX_DBNAME_LENGTH                     128
+#define MAX_DBNAME_LENGTH              128
+#define MAX_PATH                       1024
 
 /** @struct db_info
  * Define a structure to hold both the OID and database name

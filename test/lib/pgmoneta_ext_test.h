@@ -31,19 +31,11 @@
 #define PGMONETA_EXT_TEST_H
 
 #include <check.h>
+#include <ctype.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-/**
- * Execute a shell command and capture its output
- * @param command The shell command to execute
- * @param output A buffer to store the command's output
- * @param output_size The size of the output buffer
- * @return 0 on success, -1 on error
- */
-int
-execute_command(const char* command, char* output, size_t output_size);
 
 /**
  * Set up a suite of test cases for pgmoneta_ext

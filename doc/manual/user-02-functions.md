@@ -15,3 +15,5 @@ After you create the extension `pgmoneta_ext` using the `postgres` role, you can
 | `pgmoneta_ext_checkpoint()` | SUPERUSER <br>pg_checkpoint | None | A function which forces a checkpoint. <br>This function can only be executed by a `SUPERUSER` in PostgreSQL 13/14, but can also be executed by `pg_checkpoint` in PostgreSQL 15+. <br>You can use the SQL command `GRANT pg_checkpoint TO repl;` to assign the role in PostgreSQL 15+.|
 | `pgmoneta_ext_get_oid()`|   Default        | dbname  | Return the specific database OID by the database name.|
 | `pgmoneta_ext_get_oids()`    |   Default    | None   | Return all OIDs on the current server.|
+| `pgmoneta_ext_get_file()`|   SUPERUSER        | path/to/file  | Return the bytes of the specified file that is passed in.|
+| `pgmoneta_ext_get_files()`    |   SUPERUSER    | path/to/dir   | Return all file paths in the specified directory passed in.|

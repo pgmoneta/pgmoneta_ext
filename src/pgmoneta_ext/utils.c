@@ -122,7 +122,7 @@ pgmoneta_ext_check_privilege(Oid roleid)
 
    if (pgmoneta_ext_check_superuser(roleid))
    {
-      privileges |= PRIVILEDGE_SUPERUSER;
+      privileges |= PRIVILEGE_SUPERUSER;
    }
 
 #if PG_VERSION_NUM >= 150000
@@ -130,11 +130,11 @@ pgmoneta_ext_check_privilege(Oid roleid)
 
    if (is_pg_checkpoint)
    {
-      privileges |= PRIVILEDGE_PG_CHECKPOINT;
+      privileges |= PRIVILEGE_PG_CHECKPOINT;
    }
 #endif
 
-   privileges |= PRIVILEDGE_DEFAULT;
+   privileges |= PRIVILEGE_DEFAULT;
 
    return privileges;
 }

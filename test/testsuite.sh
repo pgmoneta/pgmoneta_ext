@@ -37,7 +37,7 @@ check_podman_installed() {
 }
 
 run_podman(){
-  local dockerfile=${1:-'Dockerfile.rocky8'}
+  local dockerfile=${1:-'Dockerfile.rocky9'}
   local version=${2:-13}
   local suffix="${dockerfile##*.}"
 
@@ -73,7 +73,7 @@ check_docker_installed() {
 }
 
 run_docker(){
-  local dockerfile=${1:-'Dockerfile.rocky8'}
+  local dockerfile=${1:-'Dockerfile.rocky9'}
   local version=${2:-13}
   local suffix="${dockerfile##*.}"
 
@@ -108,9 +108,9 @@ run_tests() {
   local dockerfile=$2
   local version=$3
 
-  valid_versions=("13" "14" "15" "16")
+  valid_versions=("13" "14" "15" "16" "17")
   if [[ ! " ${valid_versions[@]} " =~ " ${version} " ]]; then
-    echo "Invalid version. Please provide a version of 13, 14, 15, or 16."
+    echo "Invalid version. Please provide a version of 13, 14, 15, 16 or 17."
     exit 1
   fi
 
@@ -132,7 +132,7 @@ run_tests() {
 }
 
 dir=${1:-'./'}
-dockerfile=${2:-'Dockerfile.rocky8'}
+dockerfile=${2:-'Dockerfile.rocky9'}
 version=${3:-13}
 
 run_tests "$dir" "$dockerfile" "$version"

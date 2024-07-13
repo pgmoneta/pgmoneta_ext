@@ -38,23 +38,44 @@
 #include <access/xlog_internal.h>
 #include <catalog/pg_authid.h>
 #include <catalog/pg_type.h>
+#include <common/base64.h>
+#include <commands/dbcommands.h>
 #include <fmgr.h>
 #include <funcapi.h>
+#include <lib/stringinfo.h>
+#include <mb/pg_wchar.h>
 #include <miscadmin.h>
 #include <utils/acl.h>
+#include <utils/array.h>
 #include <utils/builtins.h>
+#include <utils/bytea.h>
 #include <utils/elog.h>
 #include <utils/errcodes.h>
 #include <utils/lsyscache.h>
+#include <utils/memutils.h>
 #include <utils/syscache.h>
+#include <storage/fd.h>
+
+/* system */
+#include <dirent.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 PG_MODULE_MAGIC;
+
+#define PGMONETA_EXT_CHUNK_SIZE 8192
+
+static text* encode_bytea_to_base64(bytea* data);
+static void list_files(const char* name, ArrayBuildState* astate);
 
 PG_FUNCTION_INFO_V1(pgmoneta_ext_version);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_switch_wal);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_checkpoint);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_oid);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_oids);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_get_file);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_get_files);
 
 Datum
 pgmoneta_ext_version(PG_FUNCTION_ARGS)
@@ -89,7 +110,7 @@ pgmoneta_ext_switch_wal(PG_FUNCTION_ARGS)
 
    privileges = pgmoneta_ext_check_privilege(roleid);
 
-   if (privileges & PRIVILEDGE_SUPERUSER)
+   if (privileges & PRIVILEGE_SUPERUSER)
    {
       // Request to switch WAL with mark_unimportant set to false.
       recptr = RequestXLogSwitch(false);
@@ -142,7 +163,7 @@ pgmoneta_ext_checkpoint(PG_FUNCTION_ARGS)
    roleid = GetUserId();
    privileges = pgmoneta_ext_check_privilege(roleid);
 
-   if (privileges & (PRIVILEDGE_PG_CHECKPOINT | PRIVILEDGE_SUPERUSER))
+   if (privileges & (PRIVILEGE_PG_CHECKPOINT | PRIVILEGE_SUPERUSER))
    {
       // Perform the checkpoint
       RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_WAIT | CHECKPOINT_FORCE);
@@ -254,4 +275,177 @@ pgmoneta_ext_get_oids(PG_FUNCTION_ARGS)
    {
       SRF_RETURN_DONE(funcctx);
    }
+}
+
+Datum
+pgmoneta_ext_get_file(PG_FUNCTION_ARGS)
+{
+   int privileges;
+   char buffer[PGMONETA_EXT_CHUNK_SIZE];
+   char* file_path;
+   size_t bytes_read;
+   text* file_path_arg;
+   FILE* file;
+   StringInfoData result;
+   Oid roleid;
+   bytea* file_data;
+   text* base64_result;
+
+   file_path_arg = PG_GETARG_TEXT_PP(0);
+   file_path = text_to_cstring(file_path_arg);
+
+   roleid = GetUserId();
+   privileges = pgmoneta_ext_check_privilege(roleid);
+
+   if (privileges & PRIVILEGE_SUPERUSER)
+   {
+      initStringInfo(&result);
+
+      // Open the file
+      file = AllocateFile(file_path, "r");
+      if (file == NULL)
+      {
+         ereport(ERROR, errmsg_internal("pgmoneta_ext_get_file: Could not open file \"%s\": %m", file_path));
+         PG_RETURN_NULL();
+      }
+
+      PG_TRY();
+      {
+         // Read the file content in chunks
+         while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0)
+         {
+            if (ferror(file))
+            {
+               ereport(ERROR, (errmsg_internal("pgmoneta_ext_get_file: Could not read file \"%s\": %m", file_path)));
+            }
+            appendBinaryStringInfo(&result, buffer, bytes_read);
+         }
+      }
+      PG_CATCH();
+      {
+         FreeFile(file);
+         PG_RE_THROW();
+      }
+      PG_END_TRY();
+
+      FreeFile(file);
+
+      file_data = (bytea*)palloc(VARHDRSZ + result.len);
+      SET_VARSIZE(file_data, VARHDRSZ + result.len);
+      memcpy(VARDATA(file_data), result.data, result.len);
+
+      // Encode as Base64
+      base64_result = encode_bytea_to_base64(file_data);
+
+      PG_RETURN_TEXT_P(base64_result);
+   }
+   else
+   {
+      ereport(LOG, errmsg_internal("pgmoneta_ext_get_file: Current role is not a superuser"));
+      PG_RETURN_NULL();
+   }
+}
+
+Datum
+pgmoneta_ext_get_files(PG_FUNCTION_ARGS)
+{
+   text* file_path_arg;
+   char* file_path;
+   struct stat path_stat;
+   ArrayBuildState* astate = NULL;
+   Oid roleid;
+   int privileges;
+
+   file_path_arg = PG_GETARG_TEXT_PP(0);
+   file_path = text_to_cstring(file_path_arg);
+
+   roleid = GetUserId();
+   privileges = pgmoneta_ext_check_privilege(roleid);
+
+   if (privileges & PRIVILEGE_SUPERUSER)
+   {
+      if (stat(file_path, &path_stat) != 0)
+      {
+         ereport(ERROR, errmsg_internal("Could not stat file or directory: %s", file_path));
+         PG_RETURN_NULL();
+      }
+
+      astate = initArrayResult(TEXTOID, CurrentMemoryContext, false);
+
+      if (S_ISDIR(path_stat.st_mode))
+      {
+         list_files(file_path, astate);
+      }
+      else if (S_ISREG(path_stat.st_mode))
+      {
+         astate = accumArrayResult(astate, CStringGetTextDatum(file_path), false, TEXTOID, CurrentMemoryContext);
+      }
+      else
+      {
+         ereport(ERROR, errmsg_internal("Argument is neither a file nor a directory: %s", file_path));
+         PG_RETURN_NULL();
+      }
+
+      PG_RETURN_DATUM(makeArrayResult(astate, CurrentMemoryContext));
+   }
+   else
+   {
+      ereport(LOG, errmsg_internal("pgmoneta_ext_get_files: Current role is not a superuser"));
+      PG_RETURN_NULL();
+   }
+}
+
+static text*
+encode_bytea_to_base64(bytea* data)
+{
+   size_t data_len = VARSIZE_ANY_EXHDR(data);
+   size_t encoded_len = pg_b64_enc_len(data_len);
+   char* encoded = palloc(encoded_len + 1);
+   int actual_encoded_len = pg_b64_encode(VARDATA_ANY(data), data_len, encoded, encoded_len);
+
+   text* result = (text*)palloc(VARHDRSZ + actual_encoded_len);
+   SET_VARSIZE(result, VARHDRSZ + actual_encoded_len);
+   memcpy(VARDATA(result), encoded, actual_encoded_len);
+
+   pfree(encoded);
+   return result;
+}
+
+static void
+list_files(const char* name, ArrayBuildState* astate)
+{
+   DIR* dir;
+   struct dirent* entry;
+
+   if (!(dir = opendir(name)))
+   {
+      return;
+   }
+
+   while ((entry = readdir(dir)) != NULL)
+   {
+      char path[MAX_PATH];
+      snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
+
+      struct stat path_stat;
+      if (stat(path, &path_stat) != 0)
+      {
+         continue;
+      }
+
+      if (S_ISDIR(path_stat.st_mode))
+      {
+         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+         {
+            continue;
+         }
+
+         list_files(path, astate);
+      }
+      else if (S_ISREG(path_stat.st_mode))
+      {
+         astate = accumArrayResult(astate, CStringGetTextDatum(path), false, TEXTOID, CurrentMemoryContext);
+      }
+   }
+   closedir(dir);
 }

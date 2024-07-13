@@ -36,6 +36,7 @@ ENV PATH=/pgsql/bin:$PATH
 ENV LD_LIBRARY_PATH=/pgsql/lib
 
 RUN yum clean all && \
+    yum makecache && \
     yum update -y && \
     yum install -y epel-release && \
     yum install -y --allowerasing \
@@ -43,7 +44,7 @@ RUN yum clean all && \
     wget ccache libicu-devel flex libxml2-devel libxslt-devel perl libev libev-devel \
     openssl openssl-devel systemd systemd-devel zlib zlib-devel libzstd libzstd-devel \
     lz4 lz4-devel libssh libssh-devel libcurl libcurl-devel python3-pip libatomic \
-    bzip2 bzip2-devel libarchive libarchive-devel check check-devel && \
+    bzip2 bzip2-devel libarchive libarchive-devel check check-devel --skip-broken && \
     yum groupinstall -y 'Development Tools' && \
     yum clean all && \
     pip3 install docutils
@@ -92,5 +93,6 @@ RUN git clone --branch "main" --single-branch --depth 1 https://github.com/pgmon
 
 CMD ["sh", "-c", "\
     su - postgres -c '/pgsql/bin/pg_ctl -D /pgsql/data -l /pgsql/logfile start' && \
+    su - postgres -c '/pgsql/bin/psql -U postgres -c \"ALTER USER repl WITH SUPERUSER;\"' && \
     /pgmoneta_ext/build/test/pgmoneta_ext_test \
 "]

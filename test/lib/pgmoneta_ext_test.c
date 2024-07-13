@@ -31,11 +31,89 @@
 
 #define BUFFER_SIZE 8192
 
-#define PGMONETA_EXT_VERSION_RESULT      "0.1.0"
-#define PGMONETA_EXT_SWITCH_WAL_RESULT   "(f,)"
-#define PGMONETA_EXT_CHECKPOINT_RESULT   "(f,)"
+#define PGMONETA_EXT_VERSION_REGEX        "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+#define PGMONETA_EXT_SWITCH_WAL_REGEX     "\\(\\w+,[^)]*\\)"
+#define PGMONETA_EXT_CHECKPOINT_REGEX     "\\(\\w+,[^)]*\\)"
+#define PGMONETA_EXT_GET_FILE_REGEX       "^[a-zA-Z0-9=]+$"
+#define PGMONETA_EXT_GET_FILES_REGEX      "^\\{((\\/[^,]+,?\\s*)*)\\}$"
 
-int
+#define PGMONETA_EXT_GET_FILE_PATH        "/pgsql/logfile"
+#define PGMONETA_EXT_GET_FILES_PATH        "/conf"
+
+static int execute_command(const char* command, char* output, size_t output_size);
+static int  regex_match(char *str, char *pattern);
+
+START_TEST(test_pgmoneta_ext_version)
+{
+   char output[BUFFER_SIZE];
+   int result = execute_command("psql -h localhost -p 5432 -U repl -d postgres -t -c 'SELECT pgmoneta_ext_version();'", output, BUFFER_SIZE);
+   ck_assert_int_eq(result, 0);
+   ck_assert_msg(regex_match(output, PGMONETA_EXT_VERSION_REGEX) == 0, "Expected version string not found in output: %s", output);
+}
+END_TEST
+
+START_TEST(test_pgmoneta_ext_switch_wal)
+{
+   char output[BUFFER_SIZE];
+   int result = execute_command("psql -h localhost -p 5432 -U repl -d postgres -t -c 'SELECT pgmoneta_ext_switch_wal();'", output, BUFFER_SIZE);
+   ck_assert_int_eq(result, 0);
+   ck_assert_msg(regex_match(output, PGMONETA_EXT_SWITCH_WAL_REGEX) == 0, "Expected WAL switch result not found in output: %s", output);
+}
+END_TEST
+
+START_TEST(test_pgmoneta_ext_checkpoint)
+{
+   char output[BUFFER_SIZE];
+   int result = execute_command("psql -h localhost -p 5432 -U repl -d postgres -t -c 'SELECT pgmoneta_ext_checkpoint();'", output, BUFFER_SIZE);
+   ck_assert_int_eq(result, 0);
+   ck_assert_msg(regex_match(output, PGMONETA_EXT_CHECKPOINT_REGEX) == 0, "Expected checkpoint result not found in output: %s", output);
+}
+END_TEST
+
+START_TEST(test_pgmoneta_ext_get_file)
+{
+   char output[BUFFER_SIZE];
+   char command[BUFFER_SIZE];
+   snprintf(command, BUFFER_SIZE, "psql -h localhost -p 5432 -U repl -d postgres -t -c \"SELECT pgmoneta_ext_get_file('%s');\"", PGMONETA_EXT_GET_FILE_PATH);
+   int result = execute_command(command, output, BUFFER_SIZE);
+   ck_assert_int_eq(result, 0);
+   ck_assert_msg(regex_match(output, PGMONETA_EXT_GET_FILE_REGEX) == 0, "Expected checkpoint result not found in output: %s", output);
+}
+END_TEST
+
+START_TEST(test_pgmoneta_ext_get_files)
+{
+   char output[BUFFER_SIZE];
+   char command[BUFFER_SIZE];
+   snprintf(command, BUFFER_SIZE, "psql -h localhost -p 5432 -U repl -d postgres -t -c \"SELECT pgmoneta_ext_get_files('%s');\"", PGMONETA_EXT_GET_FILES_PATH);
+   int result = execute_command(command, output, BUFFER_SIZE);
+   ck_assert_int_eq(result, 0);
+   ck_assert_msg(regex_match(output, PGMONETA_EXT_GET_FILES_REGEX) == 0, "Expected checkpoint result not found in output: %s", output);
+}
+END_TEST
+
+Suite*
+pgmoneta_ext_suite(void)
+{
+   Suite* s;
+   TCase* tc_core;
+
+   s = suite_create("pgmoneta_ext");
+
+   tc_core = tcase_create("Core");
+
+   tcase_add_test(tc_core, test_pgmoneta_ext_version);
+   tcase_add_test(tc_core, test_pgmoneta_ext_switch_wal);
+   tcase_add_test(tc_core, test_pgmoneta_ext_checkpoint);
+   tcase_add_test(tc_core, test_pgmoneta_ext_get_file);
+   tcase_add_test(tc_core, test_pgmoneta_ext_get_files);
+   suite_add_tcase(s, tc_core);
+
+   return s;
+}
+
+
+static int
 execute_command(const char* command, char* output, size_t output_size)
 {
    FILE* fp;
@@ -55,47 +133,25 @@ execute_command(const char* command, char* output, size_t output_size)
    return 0;
 }
 
-START_TEST(test_pgmoneta_ext_version)
+static int 
+regex_match(char *str, char *pattern)
 {
-   char output[BUFFER_SIZE];
-   int result = execute_command("psql -h localhost -p 5432 -U repl -d postgres -t -c 'SELECT pgmoneta_ext_version();'", output, BUFFER_SIZE);
-   ck_assert_int_eq(result, 0);
-   ck_assert_msg(strstr(output, PGMONETA_EXT_VERSION_RESULT) != NULL, "Expected version string not found in output: %s", output);
-}
-END_TEST
+    regex_t regex;
+    int ret;
 
-START_TEST(test_pgmoneta_ext_switch_wal)
-{
-   char output[BUFFER_SIZE];
-   int result = execute_command("psql -h localhost -p 5432 -U repl -d postgres -t -c 'SELECT pgmoneta_ext_switch_wal();'", output, BUFFER_SIZE);
-   ck_assert_int_eq(result, 0);
-   ck_assert_msg(strstr(output, PGMONETA_EXT_SWITCH_WAL_RESULT) != NULL, "Expected WAL switch result not found in output: %s", output);
-}
-END_TEST
+    while (isspace(*str)) str++;
+    char *end = str + strlen(str) - 1;
+    while (end > str && isspace(*end)) end--;
+    *(end + 1) = '\0';
 
-START_TEST(test_pgmoneta_ext_checkpoint)
-{
-   char output[BUFFER_SIZE];
-   int result = execute_command("psql -h localhost -p 5432 -U repl -d postgres -t -c 'SELECT pgmoneta_ext_checkpoint();'", output, BUFFER_SIZE);
-   ck_assert_int_eq(result, 0);
-   ck_assert_msg(strstr(output, PGMONETA_EXT_CHECKPOINT_RESULT) != NULL, "Expected checkpoint result not found in output: %s", output);
-}
-END_TEST
+    ret = regcomp(&regex, pattern, REG_EXTENDED);
+    if (ret)
+    {
+        return 1;
+    }
 
-Suite*
-pgmoneta_ext_suite(void)
-{
-   Suite* s;
-   TCase* tc_core;
+    ret = regexec(&regex, str, 0, NULL, 0);
+    regfree(&regex);
 
-   s = suite_create("pgmoneta_ext");
-
-   tc_core = tcase_create("Core");
-
-   tcase_add_test(tc_core, test_pgmoneta_ext_version);
-   tcase_add_test(tc_core, test_pgmoneta_ext_switch_wal);
-   tcase_add_test(tc_core, test_pgmoneta_ext_checkpoint);
-   suite_add_tcase(s, tc_core);
-
-   return s;
+    return ret;
 }
