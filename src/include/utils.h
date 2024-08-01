@@ -35,8 +35,9 @@ extern "C" {
 #endif
 
 /* PostgreSQL */
-#include "postgres.h"
-#include "fmgr.h"
+#include <postgres.h>
+#include <fmgr.h>
+#include <nodes/pg_list.h>
 
 /* system */
 #include <stdbool.h>
@@ -44,6 +45,17 @@ extern "C" {
 #define PRIVILEDGE_DEFAULT            1 << 0  // 001
 #define PRIVILEDGE_PG_CHECKPOINT      1 << 1  // 010
 #define PRIVILEDGE_SUPERUSER          1 << 2  // 100
+
+#define MAX_DBNAME_LENGTH                     128
+
+/** @struct db_info
+ * Define a structure to hold both the OID and database name
+ */
+struct db_info
+{
+   Oid oid;                         /**< The OID of the database */
+   char dbname[MAX_DBNAME_LENGTH];  /**< The name of the database */
+} __attribute__ ((aligned (64)));
 
 /**
  * Check if the role has superuser privileges.
@@ -69,6 +81,22 @@ pgmoneta_ext_check_role(Oid roleid, const char* rolename);
  */
 int
 pgmoneta_ext_check_privilege(Oid roleid);
+
+/**
+ * Get the specific database OID by database name.
+ * @param dbname The name of the database.
+ * @return The OID of the database if found, otherwise InvalidOid.
+ */
+Oid
+pgmoneta_ext_get_oid_by_dbname(char* dbname);
+
+/**
+ * Get a list of all database OIDs and their names.
+ * @param dbname The name of the database.
+ * @return A list of db_info structs containing the OID and name of each database.
+ */
+List*
+pgmoneta_ext_get_all_oids(void);
 
 #ifdef __cplusplus
 }

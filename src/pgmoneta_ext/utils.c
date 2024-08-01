@@ -31,15 +31,21 @@
 #include <utils.h>
 
 /* PostgreSQL */
-#include "access/htup_details.h"
-#include "catalog/pg_authid.h"
-#include "miscadmin.h"
-#include "utils/acl.h"
-#include "utils/builtins.h"
-#include "utils/elog.h"
-#include "utils/errcodes.h"
-#include "utils/relcache.h"
-#include "utils/syscache.h"
+#include <access/genam.h>
+#include <access/heapam.h>
+#include <access/htup_details.h>
+#include <catalog/indexing.h>
+#include <catalog/pg_authid.h>
+#include <catalog/pg_database.h>
+#include <miscadmin.h>
+#include <utils/acl.h>
+#include <utils/builtins.h>
+#include <utils/elog.h>
+#include <utils/errcodes.h>
+#include <utils/memutils.h>
+#include <utils/rel.h>
+#include <utils/relcache.h>
+#include <utils/syscache.h>
 
 /* system */
 
@@ -131,4 +137,67 @@ pgmoneta_ext_check_privilege(Oid roleid)
    privileges |= PRIVILEDGE_DEFAULT;
 
    return privileges;
+}
+
+Oid
+pgmoneta_ext_get_oid_by_dbname(char* dbname)
+{
+   List* db_list;
+   ListCell* cell;
+   Oid db_oid;
+
+   db_list = pgmoneta_ext_get_all_oids();
+   db_oid = InvalidOid;
+
+   foreach(cell, db_list)
+   {
+      struct db_info* db_info = (struct db_info*) lfirst(cell);
+
+      if (strncmp(db_info->dbname, dbname, MAX_DBNAME_LENGTH) == 0)
+      {
+         db_oid = db_info->oid;
+         break;
+      }
+   }
+
+   foreach(cell, db_list)
+   {
+      struct db_info* db_info = (struct db_info*) lfirst(cell);
+      pfree(db_info);
+   }
+   list_free(db_list);
+
+   return db_oid;
+}
+
+List*
+pgmoneta_ext_get_all_oids(void)
+{
+   List* db_list = NIL;
+   Relation rel;
+   TableScanDesc scan;
+   HeapTuple tuple;
+
+   rel = table_open(DatabaseRelationId, AccessShareLock);
+
+   scan = table_beginscan_catalog(rel, 0, NULL);
+
+   while ((tuple = heap_getnext(scan, ForwardScanDirection)) != NULL)
+   {
+      Form_pg_database db_form = (Form_pg_database) GETSTRUCT(tuple);
+
+      struct db_info* db_info = (struct db_info*) palloc(sizeof(struct db_info));
+
+      db_info->oid = db_form->oid;
+      strncpy(db_info->dbname, NameStr(db_form->datname), MAX_DBNAME_LENGTH);
+
+      // elog(INFO, "Database OID: %u, Database Name: %s", db_info->oid, db_info->dbname);
+
+      db_list = lappend(db_list, db_info);
+   }
+
+   table_endscan(scan);
+   table_close(rel, AccessShareLock);
+
+   return db_list;
 }

@@ -15,3 +15,11 @@ CREATE FUNCTION pgmoneta_ext_checkpoint(OUT success bool,
 RETURNS record 
 AS 'MODULE_PATHNAME' 
 LANGUAGE C STRICT;
+
+CREATE FUNCTION pgmoneta_ext_get_oid(dbname text) RETURNS text
+AS 'MODULE_PATHNAME'
+LANGUAGE C STRICT;
+
+CREATE FUNCTION pgmoneta_ext_get_oids() RETURNS SETOF RECORD
+AS 'MODULE_PATHNAME'
+LANGUAGE C;
