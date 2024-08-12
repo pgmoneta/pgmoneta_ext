@@ -2,53 +2,41 @@
 
 # Quick start
 
-## Compiling the source
+If you install `pgmoneta_ext` through the repo using yum, before you start, you need to add the `pgmoneta_ext` library to `postgresql.conf` as well:
 
-We recommend using `Fedora` to test and run pgmoneta_ext.
-
-`pgmoneta_ext` requires
-
-* [gcc 8+][gcc] (C17)
-* [cmake][cmake]
-* [make][make]
-* [PostgreSQL][postgresql]
-
-```sh
-dnf install git gcc cmake make postgresql-server-devel
+```ini
+shared_preload_libraries = 'pgmoneta_ext'
 ```
 
-Alternative [clang 8+][clang] can be used.
+And remember to restart PostgreSQL to make it work.
 
-## Build
+You can use the `postgres` role to test.
 
-### Release build
+1. Log into PostgreSQL
 
-The following commands will install `pgmoneta_ext`.
+    ``` sh
+    psql
+    ```
 
-```sh
-git clone https://github.com/pgmoneta/pgmoneta_ext
-cd pgmoneta_ext
-mkdir build
-cd build
-cmake ..
-make
-sudo make install
-```
+2. Create a new test database
 
-## Check
+    ``` sql
+    CREATE DATABASE testdb;
+    ```
 
-Make sure that `pgmoneta_ext` is installed. You should use `PostgreSQL` to test the extension functions. Since creating an extension requires the role to have superuser privileges, it is advisable to use the default `postgres` role to check if `pgmoneta_ext` has been installed successfully. After creating the extension, you can use a non-superuser role to test it.
+3. Enter the database
 
-``` sh
-sudo su -
-su - postgres
-psql
-CREATE DATABASE testdb;
-\c testdb
-DROP EXTENSION IF EXISTS pgmoneta_ext;
-CREATE EXTENSION pgmoneta_ext;
-SELECT pgmoneta_ext_version();
-```
+    ``` sql
+    \c testdb
+    ```
+
+4. Follow the SQL commands below to check the function
+
+    ``` sql
+    DROP EXTENSION IF EXISTS pgmoneta_ext;
+    CREATE EXTENSION pgmoneta_ext;
+    SELECT pgmoneta_ext_version();
+    ```
 
 You should see
 
@@ -58,5 +46,3 @@ You should see
  0.1.0
 (1 row)
 ```
-
-If you encounter any issues following the above steps, you can refer to the **Developer Guide** under **Install pgmoneta_ext** to see how to compile and install pgmoneta on your system.

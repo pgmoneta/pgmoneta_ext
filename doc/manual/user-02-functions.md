@@ -4,7 +4,17 @@
 
 ## Security
 
-After you create the extension `pgmoneta_ext` using the `postgres` role, you can test all functions as shown below. Some functions may require specific privileges (For the column `Privilege`), so if you log in with a role without the specific privileges, the function will return `false`. If you have the specific privileges, it will work as desired.
+After you create the `pgmoneta_ext` extension using the `postgres` role, you can test all functions as shown below. Some functions may require specific privileges (as indicated in the `Privilege` column). If you log in with a role that lacks the required privileges, the function will return `false` or display a warning. If you have the necessary privileges, it will work as expected.
+
+We recommend using the `postgres` role to test these functions. If you want to test them using another role, you can grant the necessary privileges with the following command:
+
+```sql
+ALTER ROLE repl WITH SUPERUSER;
+```
+
+```sql
+ALTER USER repl WITH NOSUPERUSER;
+```
 
 ## Extension functions
 

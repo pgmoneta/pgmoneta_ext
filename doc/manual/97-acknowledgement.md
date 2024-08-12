@@ -4,11 +4,19 @@
 
 ## Authors
 
-pgmoneta_ext was created by the following authors:
+[**pgmoneta_ext**][pgmoneta_ext] was created by the following authors:
 
 ```
 Jesper Pedersen <jesper.pedersen@comcast.net>
+Haoran Zhang <andrewzhr9911@gmail.com>
 Chao Gu <chadraven369@gmail.com>
+```
+
+## Committers
+
+```
+Jesper Pedersen <jesper.pedersen@comcast.net>
+Haoran Zhang <andrewzhr9911@gmail.com>
 ```
 
 ## Contributing
@@ -28,7 +36,3 @@ community.
 Consider giving the project a [star][star] on
 [GitHub][pgmoneta_ext] if you find it useful. And, feel free to follow
 the project on [Twitter][twitter] as well.
-
-## License
-
-[BSD-3-Clause][license]

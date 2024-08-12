@@ -36,9 +36,12 @@
 #define PGMONETA_EXT_CHECKPOINT_REGEX     "\\(\\w+,[^)]*\\)"
 #define PGMONETA_EXT_GET_FILE_REGEX       "^[a-zA-Z0-9=]+$"
 #define PGMONETA_EXT_GET_FILES_REGEX      "^\\{((\\/[^,]+,?\\s*)*)\\}$"
+#define PGMONETA_EXT_GET_OID_REGEX        "^[1-9][0-9]*$"
+#define PGMONETA_EXT_GET_OIDS_REGEX       "^\\([1-9][0-9]*,[a-zA-Z0-9]+\\)$"
 
 #define PGMONETA_EXT_GET_FILE_PATH        "/pgsql/logfile"
 #define PGMONETA_EXT_GET_FILES_PATH        "/conf"
+#define PGMONETA_EXT_GET_OID_DBNAME        "mydb"
 
 static int execute_command(const char* command, char* output, size_t output_size);
 static int  regex_match(char *str, char *pattern);
@@ -92,6 +95,31 @@ START_TEST(test_pgmoneta_ext_get_files)
 }
 END_TEST
 
+
+START_TEST(test_pgmoneta_ext_get_oid)
+{
+   char output[BUFFER_SIZE];
+   char command[BUFFER_SIZE];
+   snprintf(command, BUFFER_SIZE, "psql -h localhost -p 5432 -U repl -d postgres -t -c \"SELECT pgmoneta_ext_get_oid('%s');\"", PGMONETA_EXT_GET_OID_DBNAME);
+   int result = execute_command(command, output, BUFFER_SIZE);
+   ck_assert_int_eq(result, 0);
+   ck_assert_msg(regex_match(output, PGMONETA_EXT_GET_OID_REGEX) == 0, "Expected checkpoint result not found in output: %s", output);
+}
+END_TEST
+
+
+START_TEST(test_pgmoneta_ext_get_oids)
+{
+   char output[BUFFER_SIZE];
+   char command[BUFFER_SIZE];
+   snprintf(command, BUFFER_SIZE, "psql -h localhost -p 5432 -U repl -d postgres -t -c \"SELECT pgmoneta_ext_get_oids();\"");
+   int result = execute_command(command, output, BUFFER_SIZE);
+   ck_assert_int_eq(result, 0);
+   char *first_line = strtok(output, "\n");
+   ck_assert_msg(regex_match(first_line, PGMONETA_EXT_GET_OIDS_REGEX) == 0, "Expected checkpoint result not found in output: %s", output);
+}
+END_TEST
+
 Suite*
 pgmoneta_ext_suite(void)
 {
@@ -107,26 +135,30 @@ pgmoneta_ext_suite(void)
    tcase_add_test(tc_core, test_pgmoneta_ext_checkpoint);
    tcase_add_test(tc_core, test_pgmoneta_ext_get_file);
    tcase_add_test(tc_core, test_pgmoneta_ext_get_files);
+   tcase_add_test(tc_core, test_pgmoneta_ext_get_oid);
+   tcase_add_test(tc_core, test_pgmoneta_ext_get_oids);
    suite_add_tcase(s, tc_core);
 
    return s;
 }
 
-
 static int
 execute_command(const char* command, char* output, size_t output_size)
 {
    FILE* fp;
+   size_t len = 0;
    fp = popen(command, "r");
    if (fp == NULL)
    {
       return -1;
    }
 
-   if (fgets(output, output_size, fp) == NULL)
+   while (fgets(output + len, output_size - len, fp) != NULL)
    {
-      pclose(fp);
-      return -1;
+      len = strlen(output);
+      if (len >= output_size - 1) {
+         break;
+      }
    }
 
    pclose(fp);

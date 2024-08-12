@@ -12,10 +12,14 @@
 
 **pgmoneta_ext** is a PostgreSQL extension.
 
-## Tested platforms
+This extension will be installed on the server side and is primarily designed to help pgmoneta perform delta backups. There will be an extra parameter in the pgmoneta configuration; if the user sets this parameter, the server side must have this extension installed to make it work.
+
+## Platforms
+
+The supported platforms are
 
 * [Fedora][fedora] 32+
-* [RHEL][rhel] 8.x with
-  [AppStream][appstram]
+* [RHEL][rhel] 8 / RockyLinux 8
+* [RHEL][rhel] 9 / RockyLinux 9
 * [FreeBSD][freebsd]
 * [OpenBSD][openbsd]

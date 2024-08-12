@@ -14,6 +14,11 @@
   [clang]: https://clang.llvm.org/
   [pandoctemplate]: https://github.com/Wandmalfarbe/pandoc-latex-template
   [postgresqlrepo]: https://github.com/postgres/postgres
+  [psqlyum]: https://yum.postgresql.org/howto/
+  [linuxd]: https://www.postgresql.org/download/linux/redhat/
+  [git_squash]: https://www.git-tower.com/learn/git/faq/git-squash
+  [progit]: https://github.com/progit/progit2/releases
+
 
 <!-- Contributing -->
   [ask]: https://github.com/pgmoneta/pgmoneta_ext/discussions
@@ -27,3 +32,4 @@
 
 <!-- doc/ -->
   [developers]: https://github.com/pgmoneta/pgmoneta_ext/blob/main/doc/DEVELOPERS.md#developer-guide
+  [rpm]: https://github.com/GuChad369/pgmoneta_ext/blob/main/doc/RPM.md
