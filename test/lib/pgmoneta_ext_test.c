@@ -38,6 +38,7 @@
 #define PGMONETA_EXT_GET_FILES_REGEX      "^\\{((\\/[^,]+,?\\s*)*)\\}$"
 #define PGMONETA_EXT_GET_OID_REGEX        "^[1-9][0-9]*$"
 #define PGMONETA_EXT_GET_OIDS_REGEX       "^\\([1-9][0-9]*,[a-zA-Z0-9]+\\)$"
+#define PGMONETA_EXT_GET_LSN_REGEX       "^[A-Za-z0-9]+/[A-Za-z0-9]+$"
 
 #define PGMONETA_EXT_GET_FILE_PATH        "/pgsql/logfile"
 #define PGMONETA_EXT_GET_FILES_PATH        "/conf"
@@ -120,6 +121,15 @@ START_TEST(test_pgmoneta_ext_get_oids)
 }
 END_TEST
 
+START_TEST(test_pgmoneta_ext_get_lsn)
+{
+   char output[BUFFER_SIZE];
+   int result = execute_command("psql -h localhost -p 5432 -U repl -d postgres -t -c 'SELECT pgmoneta_ext_get_lsn();'", output, BUFFER_SIZE);
+   ck_assert_int_eq(result, 0);
+   ck_assert_msg(regex_match(output, PGMONETA_EXT_GET_LSN_REGEX) == 0, "Expected WAL switch result not found in output: %s", output);
+}
+END_TEST
+
 Suite*
 pgmoneta_ext_suite(void)
 {
@@ -137,6 +147,7 @@ pgmoneta_ext_suite(void)
    tcase_add_test(tc_core, test_pgmoneta_ext_get_files);
    tcase_add_test(tc_core, test_pgmoneta_ext_get_oid);
    tcase_add_test(tc_core, test_pgmoneta_ext_get_oids);
+   tcase_add_test(tc_core, test_pgmoneta_ext_get_lsn);
    suite_add_tcase(s, tc_core);
 
    return s;

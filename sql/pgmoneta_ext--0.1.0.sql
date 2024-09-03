@@ -28,6 +28,10 @@ CREATE FUNCTION pgmoneta_ext_get_file(file_path TEXT) RETURNS TEXT
 AS 'MODULE_PATHNAME'
 LANGUAGE C STRICT;
 
-CREATE OR REPLACE FUNCTION pgmoneta_ext_get_files(file_path TEXT) RETURNS text[]
+CREATE FUNCTION pgmoneta_ext_get_files(file_path TEXT) RETURNS text[]
+AS 'MODULE_PATHNAME'
+LANGUAGE C STRICT;
+
+CREATE FUNCTION pgmoneta_ext_get_lsn() RETURNS text
 AS 'MODULE_PATHNAME'
 LANGUAGE C STRICT;
