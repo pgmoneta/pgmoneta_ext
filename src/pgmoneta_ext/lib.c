@@ -76,6 +76,7 @@ PG_FUNCTION_INFO_V1(pgmoneta_ext_get_oid);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_oids);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_file);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_files);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_get_lsn);
 
 Datum
 pgmoneta_ext_version(PG_FUNCTION_ARGS)
@@ -448,4 +449,17 @@ list_files(const char* name, ArrayBuildState* astate)
       }
    }
    closedir(dir);
+}
+
+Datum
+pgmoneta_ext_get_lsn(PG_FUNCTION_ARGS)
+{
+   XLogRecPtr lsn;
+   char lsn_str[64];
+
+   lsn = GetXLogWriteRecPtr();
+
+   snprintf(lsn_str, sizeof(lsn_str), "%X/%X", (uint32)(lsn >> 32), (uint32)lsn);
+
+   PG_RETURN_TEXT_P(cstring_to_text(lsn_str));
 }

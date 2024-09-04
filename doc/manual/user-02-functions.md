@@ -27,3 +27,4 @@ ALTER USER repl WITH NOSUPERUSER;
 | `pgmoneta_ext_get_oids()`    |   Default    | None   | Return all OIDs on the current server.|
 | `pgmoneta_ext_get_file()`|   SUPERUSER        | path/to/file  | Return the bytes of the specified file that is passed in.|
 | `pgmoneta_ext_get_files()`    |   SUPERUSER    | path/to/dir   | Return all file paths in the specified directory passed in.|
+| `pgmoneta_ext_get_lsn()`    |   Default    |  None   | Return the location of the last write of WAL.|
