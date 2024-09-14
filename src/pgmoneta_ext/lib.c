@@ -40,6 +40,7 @@
 #include <catalog/pg_type.h>
 #include <common/base64.h>
 #include <commands/dbcommands.h>
+#include <executor/spi.h>
 #include <fmgr.h>
 #include <funcapi.h>
 #include <lib/stringinfo.h>
@@ -66,8 +67,17 @@ PG_MODULE_MAGIC;
 
 #define PGMONETA_EXT_CHUNK_SIZE 8192
 
+struct backup_info
+{
+   char* backup_label;
+   XLogRecPtr start_lsn;
+   XLogRecPtr stop_lsn;
+} __attribute__ ((aligned (64)));
+
 static text* encode_bytea_to_base64(bytea* data);
 static void list_files(const char* name, ArrayBuildState* astate);
+static int start_backup(struct backup_info* info);
+static int stop_backup(struct backup_info* info);
 
 PG_FUNCTION_INFO_V1(pgmoneta_ext_version);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_switch_wal);
@@ -76,6 +86,7 @@ PG_FUNCTION_INFO_V1(pgmoneta_ext_get_oid);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_oids);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_file);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_files);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_full_backup);
 
 Datum
 pgmoneta_ext_version(PG_FUNCTION_ARGS)
@@ -395,6 +406,46 @@ pgmoneta_ext_get_files(PG_FUNCTION_ARGS)
    }
 }
 
+Datum
+pgmoneta_ext_full_backup(PG_FUNCTION_ARGS)
+{
+   struct backup_info* info;
+   char backup_label[] = "test_backup";
+
+   info = (struct backup_info*) malloc(sizeof(struct backup_info));
+   memset(info, 0, sizeof(struct backup_info));
+   info->backup_label = (char*) malloc(strlen(backup_label) + 1);
+   strcpy(info->backup_label, backup_label);
+
+   if (start_backup(info) != 0)
+   {
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_full_backup: start_backup failed"));
+      free(info->backup_label);
+      free(info);
+      PG_RETURN_TEXT_P(cstring_to_text("Backup fail"));
+   }
+
+   // Perform backup ...
+
+   if (stop_backup(info) != 0)
+   {
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_full_backup: stop_backup failed"));
+      free(info->backup_label);
+      free(info);
+      PG_RETURN_TEXT_P(cstring_to_text("Backup fail"));
+   }
+
+   ereport(LOG, errmsg_internal("Final Backup Info - Label: %s, Start LSN: %X/%X, Stop LSN: %X/%X",
+                                info->backup_label,
+                                (uint32) (info->start_lsn >> 32), (uint32) info->start_lsn,
+                                (uint32) (info->stop_lsn >> 32), (uint32) info->stop_lsn));
+
+   free(info->backup_label);
+   free(info);
+
+   PG_RETURN_TEXT_P(cstring_to_text("Backup success"));
+}
+
 static text*
 encode_bytea_to_base64(bytea* data)
 {
@@ -448,4 +499,88 @@ list_files(const char* name, ArrayBuildState* astate)
       }
    }
    closedir(dir);
+}
+
+static int
+start_backup(struct backup_info* info)
+{
+   char* query;
+   int spi_result;
+
+   if (info == NULL)
+   {
+      ereport(ERROR, errmsg_internal("start_backup: backup_info is not allocated"));
+      return 1;
+   }
+
+#if PG_VERSION_NUM >= 150000
+   query = psprintf("SELECT pg_backup_start('%s')", info->backup_label);
+#else
+   query = psprintf("SELECT pg_start_backup('%s')", info->backup_label);
+#endif
+
+   if (SPI_connect() != SPI_OK_CONNECT)
+   {
+      ereport(ERROR, (errmsg_internal("start_backup: unable to connect to SPI")));
+      pfree(query);
+      return 1;
+   }
+
+   spi_result = SPI_execute(query, true, 0);
+   if (spi_result != SPI_OK_SELECT)
+   {
+      ereport(ERROR, (errmsg_internal("start_backup: SPI_execute failed with code %d", spi_result)));
+      SPI_finish();
+      pfree(query);
+      return 1;
+   }
+
+   SPI_finish();
+
+   info->start_lsn = GetXLogWriteRecPtr();
+
+   pfree(query);
+   return 0;
+}
+
+static int
+stop_backup(struct backup_info* info)
+{
+   char* query;
+   int spi_result;
+
+   if (info == NULL)
+   {
+      ereport(ERROR, errmsg_internal("stop_backup: backup_info is not allocated"));
+      return 1;
+   }
+
+#if PG_VERSION_NUM >= 150000
+   query = psprintf("SELECT pg_backup_stop()");
+#else
+   query = psprintf("SELECT pg_stop_backup()");
+#endif
+
+   if (SPI_connect() != SPI_OK_CONNECT)
+   {
+      ereport(ERROR, (errmsg_internal("stop_backup: unable to connect to SPI")));
+      pfree(query);
+      return 1;
+   }
+
+   spi_result = SPI_execute(query, true, 0);
+   if (spi_result != SPI_OK_SELECT)
+   {
+      ereport(ERROR, (errmsg_internal("stop_backup: SPI_execute failed with code %d", spi_result)));
+      SPI_finish();
+      pfree(query);
+      return 1;
+   }
+
+   SPI_finish();
+
+   info->stop_lsn = GetXLogWriteRecPtr();
+
+   pfree(query);
+   return 0;
 }
