@@ -45,6 +45,7 @@
 #include <lib/stringinfo.h>
 #include <mb/pg_wchar.h>
 #include <miscadmin.h>
+#include <storage/lwlock.h>
 #include <utils/acl.h>
 #include <utils/array.h>
 #include <utils/builtins.h>
@@ -54,20 +55,29 @@
 #include <utils/lsyscache.h>
 #include <utils/memutils.h>
 #include <utils/syscache.h>
-#include <storage/fd.h>
 
 /* system */
 #include <dirent.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
 PG_MODULE_MAGIC;
 
 #define PGMONETA_EXT_CHUNK_SIZE 8192
+#define CUSTOM_LOCK_TRANCHEID 1000
+
+typedef struct
+{
+   FILE* transfer_file;
+   LWLock* lock;
+} FileTransferContext;
 
 static text* encode_bytea_to_base64(bytea* data);
 static void list_files(const char* name, ArrayBuildState* astate);
+static void* get_transfer_context(void);
+static char* decode_base64(text* base64, size_t* decoded_len);
 
 PG_FUNCTION_INFO_V1(pgmoneta_ext_version);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_switch_wal);
@@ -76,6 +86,9 @@ PG_FUNCTION_INFO_V1(pgmoneta_ext_get_oid);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_oids);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_file);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_files);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_start_file_transfer);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_receive_file_chunk);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_finish_file_transfer);
 
 Datum
 pgmoneta_ext_version(PG_FUNCTION_ARGS)
@@ -393,6 +406,161 @@ pgmoneta_ext_get_files(PG_FUNCTION_ARGS)
       ereport(LOG, errmsg_internal("pgmoneta_ext_get_files: Current role is not a superuser"));
       PG_RETURN_NULL();
    }
+}
+
+Datum
+pgmoneta_ext_start_file_transfer(PG_FUNCTION_ARGS)
+{
+   char* file_path;
+   FileTransferContext* ctx;
+
+   ctx = (FileTransferContext*)get_transfer_context();
+
+   file_path = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+   LWLockAcquire(ctx->lock, LW_EXCLUSIVE);
+   PG_TRY();
+   {
+      if (ctx->transfer_file != NULL)
+      {
+         ereport(ERROR, (errmsg_internal("pgmoneta_ext_start_file_transfer: File transfer already in progress")));
+      }
+
+      ctx->transfer_file = AllocateFile(file_path, "wb");
+      if (ctx->transfer_file == NULL)
+      {
+         ereport(ERROR, (errmsg_internal("pgmoneta_ext_start_file_transfer: Could not open file '%s' for writing: %m", file_path)));
+      }
+   }
+   PG_CATCH();
+   {
+      LWLockRelease(ctx->lock);
+      PG_RETURN_INT32(1);
+   }
+   PG_END_TRY();
+
+   LWLockRelease(ctx->lock);
+   PG_RETURN_INT32(0);
+}
+
+Datum
+pgmoneta_ext_receive_file_chunk(PG_FUNCTION_ARGS)
+{
+   text* base64_chunk;
+   char* decoded_data;
+   size_t decoded_len;
+   FileTransferContext* ctx;
+
+   ctx = (FileTransferContext*)get_transfer_context();
+
+   base64_chunk = PG_GETARG_TEXT_PP(0);
+
+   LWLockAcquire(ctx->lock, LW_EXCLUSIVE);
+   PG_TRY();
+   {
+      if (ctx->transfer_file == NULL)
+      {
+         ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: No active file transfer")));
+      }
+
+      decoded_data = decode_base64(base64_chunk, &decoded_len);
+
+      if (fwrite(decoded_data, 1, decoded_len, ctx->transfer_file) != decoded_len)
+      {
+         pfree(decoded_data);
+         ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Failed to write chunk to file")));
+      }
+
+      pfree(decoded_data);
+   }
+   PG_CATCH();
+   {
+      LWLockRelease(ctx->lock);
+      PG_RETURN_INT32(1);
+   }
+   PG_END_TRY();
+
+   LWLockRelease(ctx->lock);
+   PG_RETURN_INT32(0);
+}
+
+Datum
+pgmoneta_ext_finish_file_transfer(PG_FUNCTION_ARGS)
+{
+   FileTransferContext* ctx;
+
+   ctx = (FileTransferContext*)get_transfer_context();
+
+   LWLockAcquire(ctx->lock, LW_EXCLUSIVE);
+   PG_TRY();
+   {
+      if (ctx->transfer_file == NULL)
+      {
+         ereport(ERROR, (errmsg_internal("pgmoneta_ext_finish_file_transfer: No active file transfer to finish")));
+      }
+
+      FreeFile(ctx->transfer_file);
+      ctx->transfer_file = NULL;
+   }
+   PG_CATCH();
+   {
+      LWLockRelease(ctx->lock);
+      PG_RETURN_INT32(1);
+   }
+   PG_END_TRY();
+
+   LWLockRelease(ctx->lock);
+   PG_RETURN_INT32(0);
+}
+
+static void*
+get_transfer_context(void)
+{
+   static FileTransferContext* ctx = NULL;
+
+   if (ctx == NULL)
+   {
+      MemoryContext oldcontext;
+
+      oldcontext = MemoryContextSwitchTo(TopMemoryContext);
+
+      ctx = MemoryContextAlloc(TopMemoryContext, sizeof(FileTransferContext));
+      ctx->transfer_file = NULL;
+
+      ctx->lock = (LWLock*)MemoryContextAlloc(TopMemoryContext, sizeof(LWLock));
+      LWLockRegisterTranche(CUSTOM_LOCK_TRANCHEID, "pgmoneta file transfer lock");
+      LWLockInitialize(ctx->lock, CUSTOM_LOCK_TRANCHEID);
+
+      MemoryContextSwitchTo(oldcontext);
+   }
+
+   return ctx;
+}
+
+static char*
+decode_base64(text* base64, size_t* decoded_len)
+{
+   size_t base64_len;
+   char* base64_str;
+   int actual_decoded_len;
+
+   base64_len = VARSIZE_ANY_EXHDR(base64);
+   base64_str = VARDATA_ANY(base64);
+
+   // Calculate the required buffer size
+   *decoded_len = pg_b64_dec_len(base64_len);
+   char* decoded = (char*)palloc(*decoded_len);
+
+   actual_decoded_len = pg_b64_decode(base64_str, base64_len, decoded, *decoded_len);
+
+   if (actual_decoded_len < 0)
+   {
+      ereport(ERROR, errmsg_internal("Failed to decode Base64 data"));
+   }
+
+   *decoded_len = actual_decoded_len;
+
+   return decoded;
 }
 
 static text*

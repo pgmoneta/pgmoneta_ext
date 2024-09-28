@@ -24,10 +24,22 @@ CREATE FUNCTION pgmoneta_ext_get_oids() RETURNS SETOF RECORD
 AS 'MODULE_PATHNAME'
 LANGUAGE C;
 
-CREATE FUNCTION pgmoneta_ext_get_file(file_path TEXT) RETURNS TEXT
+CREATE FUNCTION pgmoneta_ext_get_file(file_path text) RETURNS text
 AS 'MODULE_PATHNAME'
 LANGUAGE C STRICT;
 
-CREATE OR REPLACE FUNCTION pgmoneta_ext_get_files(file_path TEXT) RETURNS text[]
+CREATE OR REPLACE FUNCTION pgmoneta_ext_get_files(file_path text) RETURNS text[]
+AS 'MODULE_PATHNAME'
+LANGUAGE C STRICT;
+
+CREATE FUNCTION pgmoneta_ext_start_file_transfer(file_path text) RETURNS int
+AS 'MODULE_PATHNAME'
+LANGUAGE C STRICT;
+
+CREATE FUNCTION pgmoneta_ext_receive_file_chunk(base64_chunk text) RETURNS int
+AS 'MODULE_PATHNAME'
+LANGUAGE C STRICT;
+
+CREATE FUNCTION pgmoneta_ext_finish_file_transfer() RETURNS int
 AS 'MODULE_PATHNAME'
 LANGUAGE C STRICT;
