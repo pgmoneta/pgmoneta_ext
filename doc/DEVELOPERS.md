@@ -177,7 +177,7 @@ psql -h localhost -p 5432 -U repl postgres
 
 #### 9. Grant superuser privileges
 
-Since some functions require the role to have superuser privileges, you can grant these privileges to the `repl` role using the following SQL command. However, please be cautious, as this will give the role full access and control over the database, posing potential security risks.
+Since some functions require the role to have superuser privileges, you can grant these privileges to the `repl` role using the following SQL command. **Please proceed with caution**: granting superuser privileges bypasses all permission checks, allowing unrestricted access to the database, which can pose security risks. We are committed to enhancing privilege security in future updates.
 
 ``` sql
 ALTER ROLE repl WITH SUPERUSER;
