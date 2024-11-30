@@ -35,3 +35,7 @@ LANGUAGE C STRICT;
 CREATE FUNCTION pgmoneta_ext_receive_file_chunk(base64_chunk text, file_path text) RETURNS int
 AS 'MODULE_PATHNAME'
 LANGUAGE C STRICT;
+
+CREATE FUNCTION pgmoneta_ext_promote() RETURNS BOOLEAN
+AS 'MODULE_PATHNAME'
+LANGUAGE C STRICT;

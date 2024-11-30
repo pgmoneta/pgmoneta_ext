@@ -79,6 +79,7 @@ PG_FUNCTION_INFO_V1(pgmoneta_ext_get_oids);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_file);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_files);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_receive_file_chunk);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_promote);
 
 Datum
 pgmoneta_ext_version(PG_FUNCTION_ARGS)
@@ -470,6 +471,32 @@ pgmoneta_ext_receive_file_chunk(PG_FUNCTION_ARGS)
       PG_RETURN_INT32(1);
    }
 
+}
+
+Datum
+pgmoneta_ext_promote(PG_FUNCTION_ARGS)
+{
+   Oid roleid;
+   int privileges;
+   Datum promoted;
+
+   roleid = GetUserId();
+   privileges = pgmoneta_ext_check_privilege(roleid);
+
+   if (privileges & PRIVILEGE_SUPERUSER)
+   {
+
+      promoted = DirectFunctionCall2(pg_promote,
+                                     BoolGetDatum(false),
+                                     Int32GetDatum(0));
+
+      PG_RETURN_BOOL(DatumGetBool(promoted));
+   }
+   else
+   {
+      ereport(LOG, errmsg_internal("pgmoneta_ext_promote: Current role is not a superuser"));
+      PG_RETURN_BOOL(false);
+   }
 }
 
 static bytea*
