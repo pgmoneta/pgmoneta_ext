@@ -1,22 +1,22 @@
 \newpage
 
-# RPM
+## RPM
 
 `pgmoneta_ext` can be built into a RPM for [Fedora][fedora] systems.
 
-## Requirements
+### Requirements
 
 ```sh
 dnf install rpmdevtools rpmlint
 ```
 
-## Setup RPM development
+### Setup RPM development
 
 ```sh
 rpmdev-setuptree
 ```
 
-## Create source package
+### Create source package
 
 ```sh
 git clone https://github.com/pgmoneta/pgmoneta_ext
@@ -27,7 +27,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 make package_source
 ```
 
-## Create RPM package
+### Create RPM package
 
 ```sh
 cp pgmoneta_ext-$VERSION.tar.gz ~/rpmbuild/SOURCES/$VERSION.tar.gz
@@ -38,7 +38,7 @@ The resulting RPM will be located in `~/rpmbuild/RPMS/aarch64/`, if your archite
 
 You can use `tree ~/rpmbuild/` to check the directory structure
 
-## Install the RPM package
+### Install the RPM package
 
 After a successful build of the package, you can install the RPM package using the dnf command:
 
@@ -46,7 +46,7 @@ After a successful build of the package, you can install the RPM package using t
 dnf install ~/rpmbuild/RPMS/aarch64/pgmoneta_ext-0.1.0-1.fc38.aarch64.rpm
 ```
 
-## Verify the package has been installed
+### Verify the package has been installed
 
 To verify the package has correctly been installed, run the following command:
 
@@ -60,7 +60,7 @@ And you can see which files the RPM package contains:
 rpm -ql pgmoneta_ext
 ```
 
-## Removing the RPM package
+### Removing the RPM package
 
 Removing the package from the system using the dnf command:
 

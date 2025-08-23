@@ -1,6 +1,4 @@
-\newpage
-
-# Configuration
+## Configuration
 
 Our project, `pgmoneta_ext`, is primarily designed for `pgmoneta` to perform delta backups. You also need to install [`pgmoneta`][pgmoneta].
 
@@ -8,7 +6,7 @@ To ensure `pgmoneta_ext` functions properly, we should use the `repl` role to te
 
 **If you have already set up the `repl` role, you can skip sections 1-8.**
 
-## 1. Remove default access
+### 1. Remove default access
 
 Remove last lines from `/tmp/pgsql/pg_hba.conf`. The path mentioned can be found using the SQL command `SHOW hba_file;`.
 
@@ -19,7 +17,7 @@ host    replication     all             127.0.0.1/32            trust
 host    replication     all             ::1/128                 trust
 ```
 
-## 2. Add access for users and a database
+### 2. Add access for users and a database
 
 Add new lines to `/tmp/pgsql/pg_hba.conf`
 
@@ -30,7 +28,7 @@ host    replication      repl            127.0.0.1/32            scram-sha-256
 host    replication      repl            ::1/128                 scram-sha-256
 ```
 
-## 3. Set password_encryption
+### 3. Set password_encryption
 
 Set `password_encryption` value in `/tmp/pgsql/postgresql.conf` to be `scram-sha-256`
 
@@ -40,7 +38,7 @@ password_encryption = scram-sha-256
 
 For version 13, the default is `md5`, while for version 14 and above, it is `scram-sha-256`. Therefore, you should ensure that the value in `/tmp/pgsql/postgresql.conf` matches the value in `/tmp/pgsql/pg_hba.conf`.
 
-## 4. Set replication level
+### 4. Set replication level
 
 Set wal_level value in `/tmp/pgsql/postgresql.conf` to be `replica`
 
@@ -48,7 +46,7 @@ Set wal_level value in `/tmp/pgsql/postgresql.conf` to be `replica`
 wal_level = replica
 ```
 
-## 5. Start PostgreSQL
+### 5. Start PostgreSQL
 
 ``` sh
 pg_ctl  -D /tmp/pgsql/ start
@@ -64,7 +62,7 @@ pg_isready
 
 to test
 
-## 6. Add role `repl`
+### 6. Add role `repl`
 
 ``` sh
 psql postgres
@@ -72,7 +70,7 @@ CREATE ROLE repl WITH LOGIN REPLICATION PASSWORD 'secretpassword';
 \q
 ```
 
-## 7. Add replication slot
+### 7. Add replication slot
 
 Add the required replication slot
 
@@ -86,7 +84,7 @@ Here, the command in the context of `pgmoneta` is used to create a replication s
 
 For more details, please check the [pgmoneta][pgmoneta].
 
-## 8. Verify access
+### 8. Verify access
 
 For the role `repl` (pgmoneta) use `secretpassword`
 
@@ -95,7 +93,7 @@ psql -h localhost -p 5432 -U repl postgres
 \q
 ```
 
-## 9. Grant superuser privileges
+### 9. Grant superuser privileges
 
 Since some functions require the role to have `SUPERUSER` privileges, you can grant these privileges to the `repl` role using the following SQL command. However, please be cautious, as this will give the role full access and control over the database, posing potential security risks.
 
@@ -150,7 +148,7 @@ If you just want to verify if `pgmoneta_ext` was installed successfully, you can
 You should see
 
 ``` console
- pgmoneta_ext_version 
+ pgmoneta_ext_version
 ----------------------
  0.1.0
 (1 row)

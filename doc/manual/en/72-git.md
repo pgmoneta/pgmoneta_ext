@@ -1,19 +1,19 @@
 \newpage
 
-# Git guide
+## Git guide
 
 Here are some links that will help you
 
 * [How to Squash Commits in Git][git_squash]
 * [ProGit book][progit]
 
-## Basic steps
+**Basic steps**
 
-### Start by forking the repository
+**Start by forking the repository**
 
 This is done by the "Fork" button on GitHub.
 
-## Clone your repository locally
+**Clone your repository locally**
 
 This is done by
 
@@ -21,7 +21,7 @@ This is done by
 git clone git@github.com:<username>/pgmoneta_ext.git
 ```
 
-### Add upstream
+**Add upstream**
 
 Do
 
@@ -30,17 +30,17 @@ cd pgmoneta_ext
 git remote add upstream https://github.com/pgmoneta/pgmoneta_ext.git
 ```
 
-### Do a work branch
+**Do a work branch**
 
 ```sh
 git checkout -b mywork main
 ```
 
-### Make the changes
+**Make the changes**
 
 Remember to verify the compile and execution of the code
 
-### Multiple commits
+**Multiple commits**
 
 If you have multiple commits on your branch then squash them
 
@@ -50,7 +50,7 @@ git rebase -i HEAD~2
 
 for example. It is `p` for the first one, then `s` for the rest
 
-### Rebase
+**Rebase**
 
 Always rebase
 
@@ -59,7 +59,7 @@ git fetch upstream
 git rebase -i upstream/main
 ```
 
-### Force push
+**Force push**
 
 When you are done with your changes force push your branch
 
@@ -69,11 +69,11 @@ git push -f origin mywork
 
 and then create a pull requests for it
 
-### Repeat
+**Repeat**
 
 Based on feedback keep making changes, squashing, rebasing and force pushing
 
-### Undo
+**Undo**
 
 Normally you can reset to an earlier commit using `git reset <commit hash> --hard`.
 

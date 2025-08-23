@@ -1,7 +1,7 @@
 ---
 title: "pgmoneta_ext"
+subtitle: "The extension for pgmoneta"
 keywords: [pgmoneta_ext, PostgreSQL]
-subtitle: "User Guide"
 lang: "en"
 titlepage: true,
 titlepage-color: "0064A5"

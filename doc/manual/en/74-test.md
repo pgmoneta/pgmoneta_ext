@@ -1,12 +1,12 @@
 \newpage
 
-# Test suite
+## Test suite
 
-## Container Environment
+### Container Environment
 
 To ensure the test suite works well, please make sure you have installed `Docker` or `podman` on your OS. If neither `Docker` nor `podman` is installed, the test suite compilation will be skipped.
 
-### Docker
+**Docker**
 
 First, ensure your system is up to date.
 
@@ -47,7 +47,7 @@ docker --version
 
 If you see the Docker version, then you have successfully installed Docker on Fedora.
 
-### Podman
+**Podman**
 
 Install Podman and the Docker alias package.
 
@@ -65,7 +65,7 @@ If you see the Podman version, then you have successfully installed Podman on Fe
 
 The `podman-docker.noarch` package simplifies the use of `Podman` for users accustomed to Docker.
 
-## Test on container
+### Test on container
 
 You can easily use `CTest` to test all PostgreSQL versions from 13 to 16. It will automatically build the container and run all the test suites for you.
 
@@ -85,7 +85,7 @@ This will run the tests in parallel using the given number of jobs.
 
 `CTest` will output logs into `/pgmoneta_ext/build/Testing/Temporary/LastTest.log`. If you want to check the specific process, you can review that log file.
 
-## Local test
+### Local test
 
 Before you test, you need to install the `check` library. If there is no package for `check`, the `CMakeLists.txt` will not compile the test suite. Only after you have installed `check` will it compile the test suite.
 

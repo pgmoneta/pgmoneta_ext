@@ -21,22 +21,22 @@ Additional information
 * [PostgreSQL YUM][psqlyum]
 * [Linux downloads][linuxd]
 
-## RHEL 8 / RockyLinux 8
+## RHEL 9 / RockyLinux 9
 
 ```
-dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 ```
 
 ``` sh
 dnf install -y pgmoneta_ext
 ```
 
-## RHEL 9 / RockyLinux 9
+## RHEL 10 / RockyLinux 10
 
 ```
-dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
-dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-10-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 ```
 
 ``` sh
@@ -57,8 +57,6 @@ We recommend using Fedora to test and run [**pgmoneta_ext**][pgmoneta_ext], but 
 ```sh
 dnf install git gcc cmake make postgresql-server postgresql-server-devel
 ```
-
-Alternative [clang 8+](https://clang.llvm.org/) can be used.
 
 ### RHEL / RockyLinux
 
@@ -87,15 +85,15 @@ dnf install epel-release
 Then to enable powertools
 
 ``` sh
-# On RHEL 8 / Rocky 8
-dnf config-manager --set-enabled codeready-builder-for-rhel-8-rhui-rpms
-dnf config-manager --set-enabled powertools
-dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-
 # On RHEL 9 / Rocky 9, PowerTools is called crb (CodeReady Builder)
 dnf config-manager --set-enabled codeready-builder-for-rhel-9-rhui-rpms
 dnf config-manager --set-enabled crb
 dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+
+# On RHEL 10 / Rocky 10, PowerTools is called crb (CodeReady Builder)
+dnf config-manager --set-enabled codeready-builder-for-rhel-10-rhui-rpms
+dnf config-manager --set-enabled crb
+dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
 ```
 
 Then use the `dnf` command for [**pgmoneta_ext**][pgmoneta_ext] to install the required packages.
@@ -112,7 +110,7 @@ git gcc cmake gmake postgresql13-server postgresql13-client
 
 ### Build
 
-#### Release build
+**Release build**
 
 The following commands will install [**pgmoneta_ext**][pgmoneta_ext].
 
@@ -121,14 +119,14 @@ git clone https://github.com/pgmoneta/pgmoneta_ext
 cd pgmoneta_ext
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_C_COMPILER=gcc ..
 make
 sudo make install
 ```
 
 See [RPM][rpm] for how to build a RPM of [**pgmoneta_ext**][pgmoneta_ext].
 
-#### Debug build
+**Debug build**
 
 The following commands will create a `DEBUG` version of [**pgmoneta_ext**][pgmoneta_ext].
 
@@ -137,7 +135,7 @@ git clone https://github.com/pgmoneta/pgmoneta_ext
 cd pgmoneta_ext
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Debug ..
+cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_BUILD_TYPE=Debug ..
 make
 ```
 
@@ -162,14 +160,12 @@ dnf install pandoc texlive-scheme-basic \
 You will need the `Eisvogel` template as well which you can install through
 
 ```
-wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/2.4.2/Eisvogel-2.4.2.tar.gz
-tar -xzf Eisvogel-2.4.2.tar.gz
+wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/v3.2.0/Eisvogel-3.2.0.tar.gz
+tar -xzf Eisvogel-3.2.0.tar.gz
 mkdir -p $HOME/.local/share/pandoc/templates
-mv eisvogel.latex $HOME/.local/share/pandoc/templates
+mv Eisvogel-3.2.0/eisvogel.latex $HOME/.local/share/pandoc/templates/
 ```
 
 where `$HOME` is your home directory.
-
-### Build
 
 These packages will be detected during `cmake` and built as part of the main build.
