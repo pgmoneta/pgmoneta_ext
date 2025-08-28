@@ -124,7 +124,29 @@ pgmoneta_ext_check_privilege(Oid roleid)
    {
       privileges |= PRIVILEGE_SUPERUSER;
    }
+   
+#if PG_VERSION_NUM >= 110000
+   bool is_pg_server_read_files = pgmoneta_ext_check_role(roleid, "pg_read_server_files");
+   bool is_pg_server_write_files = pgmoneta_ext_check_role(roleid, "pg_write_server_files");
 
+   if (is_pg_server_read_files)
+   {
+      privileges |= PRIVILEGE_PG_READ_SERVER_FILES;
+   }
+
+   if (is_pg_server_write_files)
+   {
+      privileges |= PRIVILEGE_PG_WRITE_SERVER_FILES;
+   }
+#endif
+#if PG_VERSION_NUM >= 140000
+   bool is_pg_read_data_all = pgmoneta_ext_check_role(roleid, "pg_read_all_data");
+
+   if (is_pg_read_data_all)
+   {
+      privileges |= PRIVILEGE_PG_READ_ALL_DATA;
+   }
+#endif
 #if PG_VERSION_NUM >= 150000
    bool is_pg_checkpoint = pgmoneta_ext_check_role(roleid, "pg_checkpoint");
 

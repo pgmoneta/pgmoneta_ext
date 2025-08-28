@@ -48,9 +48,12 @@ extern "C" {
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#define PRIVILEGE_DEFAULT              1 << 0  // 001
-#define PRIVILEGE_PG_CHECKPOINT        1 << 1  // 010
-#define PRIVILEGE_SUPERUSER            1 << 2  // 100
+#define PRIVILEGE_DEFAULT               1 << 0  // 000001
+#define PRIVILEGE_PG_CHECKPOINT         1 << 1  // 000010
+#define PRIVILEGE_PG_READ_ALL_DATA      1 << 2  // 000100
+#define PRIVILEGE_PG_READ_SERVER_FILES  1 << 3  // 001000
+#define PRIVILEGE_PG_WRITE_SERVER_FILES 1 << 4  // 010000
+#define PRIVILEGE_SUPERUSER             1 << 5  // 100000
 
 #define MAX_DBNAME_LENGTH              128
 #define MAX_PATH                       1024

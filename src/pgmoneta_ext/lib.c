@@ -126,7 +126,7 @@ pgmoneta_ext_switch_wal(PG_FUNCTION_ARGS)
    }
    else
    {
-      ereport(LOG, errmsg_internal("pgmoneta_ext_switch_wal: Current role is not a superuser"));
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_switch_wal: Current role is not a superuser"));
 
       values[0] = BoolGetDatum(false);
       nulls[1] = true;
@@ -178,7 +178,7 @@ pgmoneta_ext_checkpoint(PG_FUNCTION_ARGS)
    }
    else
    {
-      ereport(LOG, errmsg_internal("pgmoneta_ext_checkpoint: Current role is not a superuser"));
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_checkpoint: Current role is not allowed to execute this function"));
 
       values[0] = BoolGetDatum(false);
       nulls[1] = true;
@@ -202,13 +202,23 @@ pgmoneta_ext_get_oid(PG_FUNCTION_ARGS)
 {
    text* dbname_text;
    char* dbname;
+   Oid roleid;
    Oid result_oid;
+   int privileges;
 
    dbname_text = PG_GETARG_TEXT_PP(0);
    dbname = text_to_cstring(dbname_text);
    result_oid = InvalidOid;
 
    result_oid = pgmoneta_ext_get_oid_by_dbname(dbname);
+
+   // check privilege
+   roleid = GetUserId();
+   privileges = pgmoneta_ext_check_privilege(roleid);
+   if (!(privileges & (PRIVILEGE_SUPERUSER | PRIVILEGE_PG_READ_ALL_DATA)))
+   {
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_get_oid: Current role is not allowed to execute this function"));
+   }
 
    if (OidIsValid(result_oid))
    {
@@ -226,7 +236,17 @@ pgmoneta_ext_get_oids(PG_FUNCTION_ARGS)
    FuncCallContext* funcctx;
    List* db_list;
    ListCell* cell;
+   Oid roleid;
    MemoryContext oldcontext;
+   int privileges;
+
+   // check privilege
+   roleid = GetUserId();
+   privileges = pgmoneta_ext_check_privilege(roleid);
+   if (!(privileges & (PRIVILEGE_SUPERUSER | PRIVILEGE_PG_READ_ALL_DATA)))
+   {
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_get_oids: Current role is not allowed to execute this function"));
+   }
 
    if (SRF_IS_FIRSTCALL())
    {
@@ -301,7 +321,7 @@ pgmoneta_ext_get_file(PG_FUNCTION_ARGS)
    roleid = GetUserId();
    privileges = pgmoneta_ext_check_privilege(roleid);
 
-   if (privileges & PRIVILEGE_SUPERUSER)
+   if (privileges & (PRIVILEGE_SUPERUSER | PRIVILEGE_PG_READ_SERVER_FILES))
    {
       initStringInfo(&result);
 
@@ -345,7 +365,7 @@ pgmoneta_ext_get_file(PG_FUNCTION_ARGS)
    }
    else
    {
-      ereport(LOG, errmsg_internal("pgmoneta_ext_get_file: Current role is not a superuser"));
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_get_file: Current role is not allowed to execute this function"));
       PG_RETURN_NULL();
    }
 }
@@ -366,7 +386,7 @@ pgmoneta_ext_get_files(PG_FUNCTION_ARGS)
    roleid = GetUserId();
    privileges = pgmoneta_ext_check_privilege(roleid);
 
-   if (privileges & PRIVILEGE_SUPERUSER)
+   if (privileges & (PRIVILEGE_SUPERUSER | PRIVILEGE_PG_READ_SERVER_FILES))
    {
       if (stat(file_path, &path_stat) != 0)
       {
@@ -394,7 +414,7 @@ pgmoneta_ext_get_files(PG_FUNCTION_ARGS)
    }
    else
    {
-      ereport(LOG, errmsg_internal("pgmoneta_ext_get_files: Current role is not a superuser"));
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_get_files: Current role is not allowed to execute this function"));
       PG_RETURN_NULL();
    }
 }
@@ -417,7 +437,7 @@ pgmoneta_ext_receive_file_chunk(PG_FUNCTION_ARGS)
    roleid = GetUserId();
    privileges = pgmoneta_ext_check_privilege(roleid);
 
-   if (privileges & PRIVILEGE_SUPERUSER)
+   if (privileges & (PRIVILEGE_SUPERUSER | PRIVILEGE_PG_WRITE_SERVER_FILES))
    {
       file = fopen(file_path, "ab");
       if (file == NULL)
@@ -467,7 +487,7 @@ pgmoneta_ext_receive_file_chunk(PG_FUNCTION_ARGS)
    }
    else
    {
-      ereport(LOG, errmsg_internal("pgmoneta_ext_receive_file_chunk: Current role is not a superuser"));
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_receive_file_chunk: Current role is not allowed to execute this function"));
       PG_RETURN_INT32(1);
    }
 
@@ -494,7 +514,7 @@ pgmoneta_ext_promote(PG_FUNCTION_ARGS)
    }
    else
    {
-      ereport(LOG, errmsg_internal("pgmoneta_ext_promote: Current role is not a superuser"));
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_promote: Current role is not a superuser"));
       PG_RETURN_BOOL(false);
    }
 }
