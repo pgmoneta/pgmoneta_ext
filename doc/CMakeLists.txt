@@ -1,7 +1,7 @@
 #
 # Generate manual
 #
-if(generation)
+if (DOCS)
   # Files
   FILE(GLOB EN "manual/en/??-*.md")
 
