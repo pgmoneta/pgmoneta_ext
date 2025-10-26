@@ -67,7 +67,7 @@ PG_MODULE_MAGIC;
 
 #define PGMONETA_EXT_CHUNK_SIZE 8192
 
-static void list_files(const char* name, ArrayBuildState* astate);
+static void list_files(const char* name, List** path_list);
 static text* base64_encode(bytea* data);
 static bytea* base64_decode(text* base64, size_t* decoded_len);
 
@@ -375,8 +375,16 @@ pgmoneta_ext_get_files(PG_FUNCTION_ARGS)
 {
    text* file_path_arg;
    char* file_path;
+
+   MemoryContext oldcontext;
+   TupleDesc tupdesc;
+   HeapTuple tuple;
+   Datum values[3];
+   bool nulls[3];
+   ListCell* cell;
+   
+   List* path_list = NIL;
    struct stat path_stat;
-   ArrayBuildState* astate = NULL;
    Oid roleid;
    int privileges;
 
@@ -386,37 +394,94 @@ pgmoneta_ext_get_files(PG_FUNCTION_ARGS)
    roleid = GetUserId();
    privileges = pgmoneta_ext_check_privilege(roleid);
 
-   if (privileges & (PRIVILEGE_SUPERUSER | PRIVILEGE_PG_READ_SERVER_FILES))
+   memset(nulls, 0, sizeof(nulls));
+
+   if (!(privileges & (PRIVILEGE_SUPERUSER | PRIVILEGE_PG_READ_SERVER_FILES)))
    {
-      if (stat(file_path, &path_stat) != 0)
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_get_files: Current role is not allowed to execute this function"));
+   }
+
+   if (stat(file_path, &path_stat) != 0)
+   {
+      ereport(ERROR, errmsg_internal("Could not stat file or directory: %s", file_path));
+   }
+
+   if (S_ISDIR(path_stat.st_mode))
+   {
+      FuncCallContext *funcctx;
+
+      if (SRF_IS_FIRSTCALL())
       {
-         ereport(ERROR, errmsg_internal("Could not stat file or directory: %s", file_path));
-         PG_RETURN_NULL();
+         TupleDesc tupdesc;
+
+         funcctx = SRF_FIRSTCALL_INIT();
+
+         oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
+         list_files(file_path, &path_list);
+
+         funcctx->user_fctx = path_list;
+
+         if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
+         {
+            ereport(ERROR, errmsg_internal("pgmoneta_ext_get_files: Return type must be a row type"));
+         }
+
+         funcctx->attinmeta = TupleDescGetAttInMetadata(tupdesc);
+
+         MemoryContextSwitchTo(oldcontext);
       }
 
-      astate = initArrayResult(TEXTOID, CurrentMemoryContext, false);
+      funcctx = SRF_PERCALL_SETUP();
 
-      if (S_ISDIR(path_stat.st_mode))
+      path_list = (List*) funcctx->user_fctx;
+      cell = list_head(path_list);
+
+      if (cell != NULL)
       {
-         list_files(file_path, astate);
-      }
-      else if (S_ISREG(path_stat.st_mode))
-      {
-         astate = accumArrayResult(astate, CStringGetTextDatum(file_path), false, TEXTOID, CurrentMemoryContext);
+         struct path_info* p_info = (struct path_info*) lfirst(cell);
+         Datum result;
+         Datum values[3];
+         bool nulls[3] = {false, false, false};
+         HeapTuple tuple;
+         List* rest;
+
+         values[0] = CStringGetTextDatum(p_info->name);
+         values[1] = BoolGetDatum(p_info->is_dir);
+         values[2] = Int64GetDatum(p_info->size);
+
+         tuple = heap_form_tuple(funcctx->attinmeta->tupdesc, values, nulls);
+
+         result = HeapTupleGetDatum(tuple);
+
+         rest = list_delete_first(path_list);
+         funcctx->user_fctx = rest;
+
+         SRF_RETURN_NEXT(funcctx, result);
       }
       else
       {
-         ereport(ERROR, errmsg_internal("Argument is neither a file nor a directory: %s", file_path));
-         PG_RETURN_NULL();
+         SRF_RETURN_DONE(funcctx);
+      }
+   }
+   else if (S_ISREG(path_stat.st_mode))
+   {
+      if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
+      {
+         ereport(ERROR, errmsg_internal("pgmoneta_ext_get_files: Return type must be a row type"));
       }
 
-      PG_RETURN_DATUM(makeArrayResult(astate, CurrentMemoryContext));
+      values[0] = CStringGetTextDatum(file_path);
+      values[1] = BoolGetDatum(S_ISDIR(path_stat.st_mode));
+      values[2] = Int64GetDatum(path_stat.st_size);
+
+      tuple = heap_form_tuple(tupdesc, values, nulls);
    }
    else
    {
-      ereport(ERROR, errmsg_internal("pgmoneta_ext_get_files: Current role is not allowed to execute this function"));
-      PG_RETURN_NULL();
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_get_files: argument is neither a file nor a directory: %s", file_path));
    }
+
+   PG_RETURN_DATUM(HeapTupleGetDatum(tuple));
 }
 
 Datum
@@ -572,7 +637,7 @@ base64_encode(bytea* data)
 }
 
 static void
-list_files(const char* name, ArrayBuildState* astate)
+list_files(const char* name, List** path_list)
 {
    DIR* dir;
    struct dirent* entry;
@@ -588,10 +653,15 @@ list_files(const char* name, ArrayBuildState* astate)
       snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
 
       struct stat path_stat;
+      struct path_info* p_info = (struct path_info*) palloc(sizeof(struct path_info));
+
       if (stat(path, &path_stat) != 0)
       {
          continue;
       }
+
+      p_info->size = path_stat.st_size;
+      strncpy(p_info->name, path, MAX_PATH);
 
       if (S_ISDIR(path_stat.st_mode))
       {
@@ -599,13 +669,20 @@ list_files(const char* name, ArrayBuildState* astate)
          {
             continue;
          }
+         list_files(path, path_list);
 
-         list_files(path, astate);
+         p_info->is_dir = true;
       }
-      else if (S_ISREG(path_stat.st_mode))
+      else if(S_ISREG(path_stat.st_mode))
       {
-         astate = accumArrayResult(astate, CStringGetTextDatum(path), false, TEXTOID, CurrentMemoryContext);
+         p_info->is_dir = false;
       }
+      else
+      {
+         continue;
+      }
+
+      *path_list = lappend(*path_list, p_info);
    }
    closedir(dir);
 }
