@@ -42,11 +42,11 @@ LANGUAGE C STRICT;
 
 REVOKE ALL ON FUNCTION pgmoneta_ext_get_file(file_path text) FROM PUBLIC;
 
-CREATE OR REPLACE FUNCTION pgmoneta_ext_get_files(file_path text) RETURNS text[]
+CREATE FUNCTION pgmoneta_ext_get_files(file_path text, OUT name text, OUT is_dir boolean, OUT size bigint) RETURNS SETOF record
 AS 'MODULE_PATHNAME'
 LANGUAGE C STRICT;
 
-REVOKE ALL ON FUNCTION pgmoneta_ext_get_files(file_path text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION pgmoneta_ext_get_files(file_path text, OUT name text, OUT is_dir boolean, OUT size bigint) FROM PUBLIC;
 
 CREATE FUNCTION pgmoneta_ext_receive_file_chunk(base64_chunk text, file_path text) RETURNS int
 AS 'MODULE_PATHNAME'
