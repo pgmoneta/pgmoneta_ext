@@ -55,7 +55,7 @@ jobs:
             cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/
             mkdir build
             cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/build/
-            cmake ..
+            cmake -DDOCS=false ..
             make
             sudo make install
           }
@@ -125,7 +125,7 @@ jobs:
             cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/
             mkdir build
             cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/build/
-            cmake ..
+            cmake -DDOCS=false ..
             make
             sudo make install
           }
@@ -194,7 +194,7 @@ jobs:
             cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/
             mkdir build
             cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/build/
-            cmake ..
+            cmake -DDOCS=false ..
             make
             sudo make install
           }
@@ -263,7 +263,7 @@ jobs:
             cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/
             mkdir build
             cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/build/
-            cmake ..
+            cmake -DDOCS=false ..
             make
             sudo make install
           }
@@ -332,7 +332,7 @@ jobs:
             cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/
             mkdir build
             cd /home/runner/work/pgmoneta_ext/pgmoneta_ext/build/
-            cmake ..
+            cmake -DDOCS=false ..
             make
             sudo make install
           }
