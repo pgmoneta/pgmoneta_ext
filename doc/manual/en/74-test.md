@@ -67,7 +67,7 @@ The `podman-docker.noarch` package simplifies the use of `Podman` for users accu
 
 ### Test on container
 
-You can easily use `CTest` to test all PostgreSQL versions from 13 to 16. It will automatically build the container and run all the test suites for you.
+You can easily use `CTest` to test all PostgreSQL versions from 14 to 18. It will automatically build the container and run all the test suites for you.
 
 After you follow the [DEVELOPERS.md][developers] to install `pgmoneta_ext`, go to the directory `/pgmoneta_ext/build` and run the test.
 

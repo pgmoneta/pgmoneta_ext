@@ -38,7 +38,7 @@ check_podman_installed() {
 
 run_podman(){
   local dockerfile=${1:-'Dockerfile.rocky9'}
-  local version=${2:-13}
+  local version=${2:-14}
   local suffix="${dockerfile##*.}"
 
   if ! podman build -f "$dockerfile" --build-arg PGVERSION="$version" -t postgres_pgmoneta_image_${suffix}_${version} .; then
@@ -74,7 +74,7 @@ check_docker_installed() {
 
 run_docker(){
   local dockerfile=${1:-'Dockerfile.rocky9'}
-  local version=${2:-13}
+  local version=${2:-14}
   local suffix="${dockerfile##*.}"
 
   if ! systemctl restart docker; then
@@ -108,9 +108,9 @@ run_tests() {
   local dockerfile=$2
   local version=$3
 
-  valid_versions=("13" "14" "15" "16" "17")
+  valid_versions=("14" "15" "16" "17" "18")
   if [[ ! " ${valid_versions[@]} " =~ " ${version} " ]]; then
-    echo "Invalid version. Please provide a version of 13, 14, 15, 16 or 17."
+    echo "Invalid version. Please provide a version of 14, 15, 16, 17 or 18."
     exit 1
   fi
 
@@ -133,6 +133,6 @@ run_tests() {
 
 dir=${1:-'./'}
 dockerfile=${2:-'Dockerfile.rocky9'}
-version=${3:-13}
+version=${3:-14}
 
 run_tests "$dir" "$dockerfile" "$version"

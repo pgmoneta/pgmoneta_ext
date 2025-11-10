@@ -71,7 +71,7 @@ Before you test, you need to install the `check` library. If there is no package
 dnf install -y check check-devel check-static
 ```
 
-You can simply use `CTest` to test all PostgreSQL versions from 13 to 16. It will automatically run `testsuite.sh` to test `pgmoneta_ext` for each version. The script will automatically create the Docker container, run it, and then use the `check` framework to test their functions inside it. After that, it will automatically clean up everything for you.
+You can simply use `CTest` to test all PostgreSQL versions from 14 to 18. It will automatically run `testsuite.sh` to test `pgmoneta_ext` for each version. The script will automatically create the Docker container, run it, and then use the `check` framework to test their functions inside it. After that, it will automatically clean up everything for you.
 
 After you follow the [DEVELOPERS.md](https://github.com/pgmoneta/pgmoneta_ext/blob/main/doc/DEVELOPERS.md) to install `pgmoneta_ext`, go to the directory `/pgmoneta_ext/build` and run the test.
 
@@ -89,7 +89,7 @@ This will run the tests in parallel using the given number of jobs.
 
 `CTest` will output logs into `/pgmoneta_ext/build/Testing/Temporary/LastTest.log`. If you want to check the specific process, you can review that log file.
 
-`testsuite.sh` accepts three variables. The first one is `dir`, which specifies the `/test` directory location, with a default value of `./`. The second one is `dockerfile`, with a default value of `Dockerfile.rocky8`. The third one is the PostgreSQL `version`, with a default value of `13`.
+`testsuite.sh` accepts three variables. The first one is `dir`, which specifies the `/test` directory location, with a default value of `./`. The second one is `dockerfile`, with a default value of `Dockerfile.rocky8`. The third one is the PostgreSQL `version`, with a default value of `14`.
 
 ## Local test
 

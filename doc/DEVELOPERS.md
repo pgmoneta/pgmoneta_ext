@@ -118,8 +118,6 @@ Set `password_encryption` value in `/tmp/pgsql/postgresql.conf` to be `scram-sha
 password_encryption = scram-sha-256
 ```
 
-For version 13, the default is `md5`, while for version 14 and above, it is `scram-sha-256`. Therefore, you should ensure that the value in `/tmp/pgsql/postgresql.conf` matches the value in `/tmp/pgsql/pg_hba.conf`.
-
 #### 4. Set replication level
 
 Set wal_level value in `/tmp/pgsql/postgresql.conf` to be `replica`

@@ -105,7 +105,7 @@ On FreeBSD, `pkg` is used instead of `dnf` or `yum`.
 Use `pkg install <package name>` to install the following packages
 
 ``` sh
-git gcc cmake gmake postgresql13-server postgresql13-client
+git gcc cmake gmake postgresql14-server postgresql14-client
 ```
 
 ### Build

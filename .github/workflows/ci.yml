@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  test-postgresql-13:
+  test-postgresql-14:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,11 +19,11 @@ jobs:
         run: sudo apt-get update -y
       - name: Install dependencies
         run: sudo apt-get install -y --no-install-recommends git gcc cmake make wget build-essential libreadline-dev zlib1g-dev flex bison libxml2-dev libxslt1-dev libssl-dev libxml2-utils xsltproc ccache pkg-config check
-      - name: Test PostgreSQL 13
+      - name: Test PostgreSQL 14
         run: |
           set -e
           install_postgresql() {
-            version=${1:-13}
+            version=${1:-14}
             git_repo="https://github.com/postgres/postgres.git"
             cd /tmp
             git clone --branch "REL_${version}_STABLE" --single-branch --depth 1 "$git_repo"
@@ -38,7 +38,7 @@ jobs:
           }
 
           config_postgresql(){
-            version=${1:-13}
+            version=${1:-14}
             sudo -u postgres sed -i 's/^#\s*password_encryption\s*=\s*\(md5\|scram-sha-256\)/password_encryption = scram-sha-256/' /tmp/pgsql-${version}/postgresql.conf
             sudo -u postgres sed -i '/^host/d' /tmp/pgsql-${version}/pg_hba.conf
             sudo -u postgres bash -c "cat <<EOF >> /tmp/pgsql-${version}/pg_hba.conf
@@ -71,13 +71,13 @@ jobs:
             sudo -u postgres /usr/local/pgsql/bin/pg_ctl -D /tmp/pgsql-${version} -l /tmp/logfile stop
           }
 
-          echo "******************* START PostgreSQL 13 ******************"
-          install_postgresql 13
-          config_postgresql 13
+          echo "******************* START PostgreSQL 14 ******************"
+          install_postgresql 14
+          config_postgresql 14
           install_pgmoneta_ext
           create_pgmoneta_ext
           test_pgmoneta_ext
-          echo "******************* PostgreSQL 13 Success ******************"
+          echo "******************* PostgreSQL 14 Success ******************"
 
   test-postgresql-14:
     runs-on: ubuntu-latest
@@ -93,7 +93,7 @@ jobs:
           set -e
 
           install_postgresql() {
-            version=${1:-13}
+            version=${1:-14}
             git_repo="https://github.com/postgres/postgres.git"
             cd /tmp
             git clone --branch "REL_${version}_STABLE" --single-branch --depth 1 "$git_repo"
@@ -108,7 +108,7 @@ jobs:
           }
 
           config_postgresql(){
-            version=${1:-13}
+            version=${1:-14}
             sudo -u postgres sed -i 's/^#\s*password_encryption\s*=\s*\(md5\|scram-sha-256\)/password_encryption = scram-sha-256/' /tmp/pgsql-${version}/postgresql.conf
             sudo -u postgres sed -i '/^host/d' /tmp/pgsql-${version}/pg_hba.conf
             sudo -u postgres bash -c "cat <<EOF >> /tmp/pgsql-${version}/pg_hba.conf
@@ -162,7 +162,7 @@ jobs:
         run: |
           set -e
           install_postgresql() {
-            version=${1:-13}
+            version=${1:-14}
             git_repo="https://github.com/postgres/postgres.git"
             cd /tmp
             git clone --branch "REL_${version}_STABLE" --single-branch --depth 1 "$git_repo"
@@ -177,7 +177,7 @@ jobs:
           }
 
           config_postgresql(){
-            version=${1:-13}
+            version=${1:-14}
             sudo -u postgres sed -i 's/^#\s*password_encryption\s*=\s*\(md5\|scram-sha-256\)/password_encryption = scram-sha-256/' /tmp/pgsql-${version}/postgresql.conf
             sudo -u postgres sed -i '/^host/d' /tmp/pgsql-${version}/pg_hba.conf
             sudo -u postgres bash -c "cat <<EOF >> /tmp/pgsql-${version}/pg_hba.conf
@@ -231,7 +231,7 @@ jobs:
         run: |
           set -e
           install_postgresql() {
-            version=${1:-13}
+            version=${1:-14}
             git_repo="https://github.com/postgres/postgres.git"
             cd /tmp
             git clone --branch "REL_${version}_STABLE" --single-branch --depth 1 "$git_repo"
@@ -246,7 +246,7 @@ jobs:
           }
 
           config_postgresql(){
-            version=${1:-13}
+            version=${1:-14}
             sudo -u postgres sed -i 's/^#\s*password_encryption\s*=\s*\(md5\|scram-sha-256\)/password_encryption = scram-sha-256/' /tmp/pgsql-${version}/postgresql.conf
             sudo -u postgres sed -i '/^host/d' /tmp/pgsql-${version}/pg_hba.conf
             sudo -u postgres bash -c "cat <<EOF >> /tmp/pgsql-${version}/pg_hba.conf
@@ -300,7 +300,7 @@ jobs:
         run: |
           set -e
           install_postgresql() {
-            version=${1:-13}
+            version=${1:-14}
             git_repo="https://github.com/postgres/postgres.git"
             cd /tmp
             git clone --branch "REL_${version}_STABLE" --single-branch --depth 1 "$git_repo"
@@ -315,7 +315,7 @@ jobs:
           }
 
           config_postgresql(){
-            version=${1:-13}
+            version=${1:-14}
             sudo -u postgres sed -i 's/^#\s*password_encryption\s*=\s*\(md5\|scram-sha-256\)/password_encryption = scram-sha-256/' /tmp/pgsql-${version}/postgresql.conf
             sudo -u postgres sed -i '/^host/d' /tmp/pgsql-${version}/pg_hba.conf
             sudo -u postgres bash -c "cat <<EOF >> /tmp/pgsql-${version}/pg_hba.conf
