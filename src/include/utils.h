@@ -67,16 +67,15 @@ struct db_info
    char dbname[MAX_DBNAME_LENGTH];  /**< The name of the database */
 } __attribute__ ((aligned (64)));
 
-/** @struct path_info 
+/** @struct path_info
  * Define a structure to hold the path name and its meta data
-*/
+ */
 struct path_info
 {
    char name[MAX_PATH];       /**< The name of the path */
    bool is_dir;               /**< The path is directory/file */
    size_t size;               /**< The size of the path */
 } __attribute__ ((aligned (64)));
-
 
 /**
  * Check if the role has superuser privileges.
