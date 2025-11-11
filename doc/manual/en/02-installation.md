@@ -7,7 +7,7 @@
 You need to add the [PostgreSQL YUM repository](https://yum.postgresql.org/), for example for Fedora 40
 
 ``` sh
-dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/F-40-x86_64/pgdg-fedora-repo-latest.noarch.rpm
+dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/F-42-x86_64/pgdg-fedora-repo-latest.noarch.rpm
 ```
 
 and do the install via
@@ -160,10 +160,10 @@ dnf install pandoc texlive-scheme-basic \
 You will need the `Eisvogel` template as well which you can install through
 
 ```
-wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/v3.2.0/Eisvogel-3.2.0.tar.gz
-tar -xzf Eisvogel-3.2.0.tar.gz
+wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/v3.2.1/Eisvogel-3.2.1.tar.gz
+tar -xzf Eisvogel-3.2.1.tar.gz
 mkdir -p $HOME/.local/share/pandoc/templates
-mv Eisvogel-3.2.0/eisvogel.latex $HOME/.local/share/pandoc/templates/
+mv Eisvogel-3.2.1/eisvogel.latex $HOME/.local/share/pandoc/templates/
 ```
 
 where `$HOME` is your home directory.

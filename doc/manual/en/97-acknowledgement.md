@@ -10,6 +10,7 @@
 Jesper Pedersen <jesper.pedersen@comcast.net>
 Haoran Zhang <andrewzhr9911@gmail.com>
 Chao Gu <chadraven369@gmail.com>
+Ashutosh Sharma <ash2003sharma@gmail.com>
 ```
 
 ## Committers

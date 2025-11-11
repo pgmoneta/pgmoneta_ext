@@ -1,6 +1,6 @@
 ## Configuration
 
-Our project, `pgmoneta_ext`, is primarily designed for `pgmoneta` to perform delta backups. You also need to install [`pgmoneta`][pgmoneta].
+Our project, `pgmoneta_ext`, is primarily designed for `pgmoneta` to perform incremental backups. You also need to install [`pgmoneta`][pgmoneta].
 
 To ensure `pgmoneta_ext` functions properly, we should use the `repl` role to test all extension functions and verify they work correctly with `pgmoneta`. Therefore, we need to make sure that all necessary configurations for `repl` are in place.
 
@@ -120,22 +120,10 @@ If you just want to verify if `pgmoneta_ext` was installed successfully, you can
 1. Log into PostgreSQL
 
     ``` sh
-    psql
+    psql postgres
     ```
 
-2. Create a new test database
-
-    ``` sql
-    CREATE DATABASE testdb;
-    ```
-
-3. Enter the database
-
-    ``` sql
-    \c testdb
-    ```
-
-4. Follow the SQL commands below to check the function
+2. Follow the SQL commands below to check the function
 
     ``` sql
     DROP EXTENSION IF EXISTS pgmoneta_ext;
@@ -156,8 +144,8 @@ If you encounter any errors, you can check the log to find the reason. The log's
 
 ``` ini
 # These are only used if logging_collector is on:
-log_directory = 'log'                   # directory where log files are written,
-                                        # can be absolute or relative to PGDATA
-log_filename = 'postgresql-%a.log'      # log file name pattern,
-                                        # can include strftime() escapes
+log_directory = 'log'              # directory where log files are written,
+                                   # can be absolute or relative to PGDATA
+log_filename = 'postgresql-%a.log' # log file name pattern,
+                                   # can include strftime() escapes
 ```
