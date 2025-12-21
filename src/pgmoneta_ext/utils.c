@@ -27,6 +27,8 @@
  *
  */
 
+#define _DARWIN_C_SOURCE
+
 /* pgmoneta_ext */
 #include <utils.h>
 

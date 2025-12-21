@@ -59,3 +59,18 @@ AS 'MODULE_PATHNAME'
 LANGUAGE C STRICT;
 
 REVOKE ALL ON FUNCTION pgmoneta_ext_promote() FROM PUBLIC;
+
+CREATE OR REPLACE FUNCTION pgmoneta_ext_set_guc(
+   parameter text,
+   value text,
+   reload boolean DEFAULT true,
+   OUT guc_param text,
+   OUT old_value text,
+   OUT new_value text,
+   OUT restart_required boolean
+)
+RETURNS record
+AS 'MODULE_PATHNAME'
+LANGUAGE C STRICT;
+
+REVOKE ALL ON FUNCTION pgmoneta_ext_set_guc(text, text, boolean, OUT text, OUT text, OUT text, OUT boolean) FROM PUBLIC;

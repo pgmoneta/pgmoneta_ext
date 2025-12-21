@@ -27,6 +27,8 @@
  *
  */
 
+#define _DARWIN_C_SOURCE
+
 /* pgmoneta_ext */
 #include <pgmoneta_ext.h>
 #include <utils.h>
@@ -45,15 +47,18 @@
 #include <lib/stringinfo.h>
 #include <mb/pg_wchar.h>
 #include <miscadmin.h>
+#include <storage/fd.h>
 #include <utils/acl.h>
 #include <utils/array.h>
 #include <utils/builtins.h>
 #include <utils/bytea.h>
 #include <utils/elog.h>
 #include <utils/errcodes.h>
+#include <utils/guc.h>
 #include <utils/lsyscache.h>
 #include <utils/memutils.h>
 #include <utils/syscache.h>
+#include <executor/spi.h>
 
 /* system */
 #include <dirent.h>
@@ -80,6 +85,7 @@ PG_FUNCTION_INFO_V1(pgmoneta_ext_get_file);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_get_files);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_receive_file_chunk);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_promote);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_set_guc);
 
 Datum
 pgmoneta_ext_version(PG_FUNCTION_ARGS)
@@ -582,6 +588,179 @@ pgmoneta_ext_promote(PG_FUNCTION_ARGS)
       ereport(ERROR, errmsg_internal("pgmoneta_ext_promote: Current role is not a superuser"));
       PG_RETURN_BOOL(false);
    }
+}
+
+Datum
+pgmoneta_ext_set_guc(PG_FUNCTION_ARGS)
+{
+   Datum values[4];
+   bool nulls[4] = {false, false, false, false};
+
+   TupleDesc tupdesc;
+   HeapTuple tuple;
+
+   text *param_txt;
+   text *value_txt;
+   char *param;
+   char *value;
+
+   bool reload = true;
+   bool restart_required = false;
+
+   char *old_value = NULL;
+   char *new_value = NULL;
+
+   Oid argtypes[1] = { TEXTOID };
+   Datum spi_values[1];
+   char spi_nulls[1] = { ' ' };
+
+   if (RecoveryInProgress())
+   {
+      ereport(ERROR,
+              errmsg("pgmoneta_ext_set_guc: cannot be executed on a standby server"));
+   }
+
+   param_txt = PG_GETARG_TEXT_PP(0);
+   value_txt = PG_GETARG_TEXT_PP(1);
+
+   if (PG_NARGS() == 3 && !PG_ARGISNULL(2))
+   {
+      reload = PG_GETARG_BOOL(2);
+   }
+
+   param = text_to_cstring(param_txt);
+   value = text_to_cstring(value_txt);
+
+   SPI_connect();
+   spi_values[0] = CStringGetTextDatum(param);
+
+   SPI_execute_with_args(
+      "SELECT setting, pending_restart "
+      "FROM pg_settings "
+      "WHERE name = $1",
+      1,
+      argtypes,
+      spi_values,
+      spi_nulls,
+      true,
+      1
+   );
+   if (SPI_processed == 0)
+   {
+      SPI_finish();
+      ereport(ERROR,
+              errmsg("unknown configuration parameter \"%s\"", param));
+   }
+
+   old_value = SPI_getvalue(
+      SPI_tuptable->vals[0],
+      SPI_tuptable->tupdesc,
+      1
+   );
+
+   {
+      char *dbname = get_database_name(MyDatabaseId);
+      char *alter_cmd;
+      char *set_cmd;
+      int ret;
+
+      if (dbname == NULL)
+      {
+         SPI_finish();
+         ereport(ERROR,
+                 errmsg("pgmoneta_ext_set_guc: could not get database name"));
+      }
+
+      // SET the parameter for the current session
+      set_cmd = psprintf(
+         "SET %s = %s",
+         quote_identifier(param),
+         quote_literal_cstr(value)
+      );
+
+      ret = SPI_execute(set_cmd, false, 0);
+      if (ret < 0)
+      {
+         SPI_finish();
+         ereport(ERROR,
+                 errmsg("pgmoneta_ext_set_guc: SET failed with code %d", ret));
+      }
+
+      pfree(set_cmd);
+
+      // ALTER DATABASE SET to persist for future connections
+      alter_cmd = psprintf(
+         "ALTER DATABASE %s SET %s = %s",
+         quote_identifier(dbname),
+         quote_identifier(param),
+         quote_literal_cstr(value)
+      );
+      ret = SPI_execute(alter_cmd, false, 0);
+
+      if (ret < 0)
+      {
+         SPI_finish();
+         ereport(ERROR,
+                 errmsg("pgmoneta_ext_set_guc: ALTER DATABASE failed with code %d", ret));
+      }
+
+      pfree(alter_cmd);
+      pfree(dbname);
+   }
+
+   if (reload)
+   {
+      int ret = SPI_execute("SELECT pg_reload_conf()", true, 0);
+      if (ret < 0)
+      {
+         elog(WARNING, "pgmoneta_ext_set_guc: pg_reload_conf() failed with code %d", ret);
+      }
+   }
+
+   SPI_execute_with_args(
+      "SELECT setting, pending_restart "
+      "FROM pg_settings "
+      "WHERE name = $1",
+      1,
+      argtypes,
+      spi_values,
+      spi_nulls,
+      true,
+      1
+   );
+   new_value = SPI_getvalue(
+      SPI_tuptable->vals[0],
+      SPI_tuptable->tupdesc,
+      1
+   );
+
+   {
+      bool isnull;
+      Datum restart_datum = SPI_getbinval(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, 2, &isnull);
+      
+      if (isnull)
+      {
+         restart_required = false;
+      }
+      else
+      {
+         restart_required = DatumGetBool(restart_datum);
+      }
+   }
+
+   SPI_finish();
+   values[0] = CStringGetTextDatum(param);
+   values[1] = CStringGetTextDatum(old_value);
+   values[2] = CStringGetTextDatum(new_value);
+   values[3] = BoolGetDatum(restart_required);
+
+   if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
+   {
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_set_guc: return type must be a row type"));
+   }
+
+   tuple = heap_form_tuple(tupdesc, values, nulls);
+   PG_RETURN_DATUM(HeapTupleGetDatum(tuple));
 }
 
 static bytea*

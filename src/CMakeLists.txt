@@ -49,6 +49,16 @@ else (EXT_LIB_DIR)
   message(FATAL_ERROR "pg_config --libdir failed")
 endif (EXT_LIB_DIR)
 
+execute_process(COMMAND pg_config --bindir
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                OUTPUT_VARIABLE EXT_BIN_DIR)
+
+if (EXT_BIN_DIR)
+  message(STATUS "Binary directory: ${EXT_BIN_DIR}")
+else (EXT_BIN_DIR)
+  message(FATAL_ERROR "pg_config --bindir failed")
+endif (EXT_BIN_DIR)
+
 #
 # OS
 #
@@ -64,13 +74,6 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${EXT_INCLUDE_DIR}
     ${EXT_INCLUDE_SERVER_DIR}
-  )
-
-  #
-  # Library directories
-  #
-  link_libraries(
-    ${EXT_LIB_DIR}/libpq.so
   )
 
 else()
@@ -89,13 +92,8 @@ else()
     ${EXT_INCLUDE_SERVER_DIR}
   )
 
-  #
-  # Library directories
-  #
-  link_libraries(
-    ${EXT_LIB_DIR}/libpq.so
-  )
 endif()
+link_directories(${EXT_LIB_DIR})
 
 #
 # Compile options
@@ -156,16 +154,20 @@ if (HAS_PIC)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 endif()
 
-check_c_compiler_flag(-Wl,-z,relro HAS_RELRO)
-if (HAS_RELRO)
-  set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro")
-  set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro")
-endif()
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 
-check_c_compiler_flag(-Wl,-z,now HAS_NOW)
-if (HAS_NOW)
-  set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,now")
-  set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,now")
+  check_c_compiler_flag(-Wl,-z,relro HAS_RELRO)
+  if (HAS_RELRO)
+    set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro")
+  endif()
+
+  check_c_compiler_flag(-Wl,-z,now HAS_NOW)
+  if (HAS_NOW)
+    set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,now")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,now")
+  endif()
+
 endif()
 
 #
@@ -174,6 +176,15 @@ endif()
 add_library(pgmoneta_ext SHARED ${SOURCES})
 set_target_properties(pgmoneta_ext PROPERTIES LINKER_LANGUAGE C VERSION ${VERSION_STRING}
                                      SOVERSION ${VERSION_MAJOR} PREFIX "")
-target_link_libraries(pgmoneta_ext PUBLIC)
+
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+  # On macOS, PostgreSQL extensions are loaded as bundles
+  set_target_properties(pgmoneta_ext PROPERTIES
+    SUFFIX ".dylib"
+    LINK_FLAGS "-Wl,-undefined,dynamic_lookup"
+  )
+else()
+  target_link_libraries(pgmoneta_ext PRIVATE pq)
+endif()
 
 install(TARGETS pgmoneta_ext DESTINATION ${EXT_INSTALL_DIR}/)
