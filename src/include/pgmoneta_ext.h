@@ -34,7 +34,7 @@
 extern "C" {
 #endif
 
-#define VERSION "0.1.1"
+#define VERSION "0.1.2"
 
 #define PGMONETA_EXT_HOMEPAGE "https://github.com/pgmoneta/pgmoneta_ext"
 #define PGMONETA_EXT_ISSUES "https://github.com/pgmoneta/pgmoneta_ext/issues"

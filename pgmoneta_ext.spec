@@ -1,5 +1,5 @@
 Name:          pgmoneta_ext
-Version:       0.1.1
+Version:       0.1.2
 Release:       1%{dist}
 Summary:       An extension to enhance the functionality of the main pgmoneta project.
 License:       BSD

@@ -222,7 +222,7 @@ You should see
 ``` console
  pgmoneta_ext_version 
 ----------------------
- 0.1.1
+ 0.1.2
 (1 row)
 ```
 

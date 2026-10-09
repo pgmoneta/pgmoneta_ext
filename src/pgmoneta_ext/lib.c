@@ -85,6 +85,7 @@ PG_FUNCTION_INFO_V1(pgmoneta_ext_get_files);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_receive_file_chunk);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_promote);
 PG_FUNCTION_INFO_V1(pgmoneta_ext_fips);
+PG_FUNCTION_INFO_V1(pgmoneta_ext_get_blocks);
 
 Datum
 pgmoneta_ext_version(PG_FUNCTION_ARGS)
@@ -706,4 +707,84 @@ list_files(const char* name, List** path_list)
       *path_list = lappend(*path_list, p_info);
    }
    closedir(dir);
+}
+
+Datum
+pgmoneta_ext_get_blocks(PG_FUNCTION_ARGS)
+{
+   char* file_path;
+   ArrayType* blocks_arg;
+   int32 block_size;
+   Datum* blocks;
+   bool* block_nulls;
+   int nblocks;
+   int privileges;
+   int fd;
+   char* buffer;
+   ssize_t bytes_read;
+   StringInfoData result;
+   bytea* data;
+
+   file_path = text_to_cstring(PG_GETARG_TEXT_PP(0));
+   blocks_arg = PG_GETARG_ARRAYTYPE_P(1);
+   block_size = PG_GETARG_INT32(2);
+
+   privileges = pgmoneta_ext_check_privilege(GetUserId());
+   if (!(privileges & (PRIVILEGE_SUPERUSER | PRIVILEGE_PG_READ_SERVER_FILES)))
+   {
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_get_blocks: Current role is not allowed to execute this function"));
+   }
+
+   if (block_size <= 0 || block_size > 32768)
+   {
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_get_blocks: Invalid block size %d", block_size));
+   }
+
+   deconstruct_array(blocks_arg, INT8OID, sizeof(int64), FLOAT8PASSBYVAL, TYPALIGN_DOUBLE,
+                     &blocks, &block_nulls, &nblocks);
+
+   fd = OpenTransientFile(file_path, O_RDONLY | PG_BINARY);
+   if (fd < 0)
+   {
+      ereport(ERROR, errmsg_internal("pgmoneta_ext_get_blocks: Could not open file \"%s\": %m", file_path));
+   }
+
+   buffer = palloc(block_size);
+   initStringInfo(&result);
+
+   PG_TRY();
+   {
+      /* Stop at the first block that can't be read in full, e.g. the relation was truncated */
+      for (int i = 0; i < nblocks; i++)
+      {
+         if (block_nulls[i] || DatumGetInt64(blocks[i]) < 0)
+         {
+            ereport(ERROR, errmsg_internal("pgmoneta_ext_get_blocks: Invalid block number"));
+         }
+         bytes_read = pread(fd, buffer, block_size, (off_t) DatumGetInt64(blocks[i]) * block_size);
+         if (bytes_read < 0)
+         {
+            ereport(ERROR, errmsg_internal("pgmoneta_ext_get_blocks: Could not read file \"%s\": %m", file_path));
+         }
+         if (bytes_read < block_size)
+         {
+            break;
+         }
+         appendBinaryStringInfo(&result, buffer, block_size);
+      }
+   }
+   PG_CATCH();
+   {
+      CloseTransientFile(fd);
+      PG_RE_THROW();
+   }
+   PG_END_TRY();
+
+   CloseTransientFile(fd);
+
+   data = (bytea*) palloc(VARHDRSZ + result.len);
+   SET_VARSIZE(data, VARHDRSZ + result.len);
+   memcpy(VARDATA(data), result.data, result.len);
+
+   PG_RETURN_TEXT_P(base64_encode(data));
 }
