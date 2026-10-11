@@ -15,7 +15,7 @@ if(PDFLATEX_FOUND)
   # check for kpsewhich
   find_program(KPSEWHICH kpsewhich)
   if(NOT KPSEWHICH)
-    set(generation FALSE)
+    set(DOCS FALSE)
     message(STATUS "kpsewhich not found. The generation process will be skipped.")
     return()
   endif()
@@ -30,7 +30,7 @@ if(PDFLATEX_FOUND)
         OUTPUT_STRIP_TRAILING_WHITESPACE
       )
       if(NOT PATH)
-        set(generation FALSE)
+        set(DOCS FALSE)
         message(STATUS "${PACKAGE_NAME} not found. The generation process will be skipped.")
         set(check_next FALSE)  # Disable further checks
       else()
