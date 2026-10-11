@@ -35,7 +35,7 @@
 #define PGMONETA_EXT_SWITCH_WAL_REGEX     "\\(\\w+,[^)]*\\)"
 #define PGMONETA_EXT_CHECKPOINT_REGEX     "\\(\\w+,[^)]*\\)"
 #define PGMONETA_EXT_GET_FILE_REGEX       "^[a-zA-Z0-9=]+$"
-#define PGMONETA_EXT_GET_FILES_REGEX      "^\\{((\\/[^,]+,?\\s*)*)\\}$"
+#define PGMONETA_EXT_GET_FILES_REGEX      "^\\(\\/conf\\/[^,]+,[tf],[0-9]+\\)$"
 #define PGMONETA_EXT_GET_OID_REGEX        "^[1-9][0-9]*$"
 #define PGMONETA_EXT_GET_OIDS_REGEX       "^\\([1-9][0-9]*,[a-zA-Z0-9]+\\)$"
 
@@ -91,7 +91,8 @@ START_TEST(test_pgmoneta_ext_get_files)
    snprintf(command, BUFFER_SIZE, "psql -h localhost -p 5432 -U repl -d postgres -t -c \"SELECT pgmoneta_ext_get_files('%s');\"", PGMONETA_EXT_GET_FILES_PATH);
    int result = execute_command(command, output, BUFFER_SIZE);
    ck_assert_int_eq(result, 0);
-   ck_assert_msg(regex_match(output, PGMONETA_EXT_GET_FILES_REGEX) == 0, "Expected checkpoint result not found in output: %s", output);
+   char *first_line = strtok(output, "\n");
+   ck_assert_msg(first_line != NULL && regex_match(first_line, PGMONETA_EXT_GET_FILES_REGEX) == 0, "Expected file entry not found in output: %s", output);
 }
 END_TEST
 
