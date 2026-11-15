@@ -39,10 +39,12 @@
 #define PGMONETA_EXT_GET_OID_REGEX        "^[1-9][0-9]*$"
 #define PGMONETA_EXT_GET_OIDS_REGEX       "^\\([1-9][0-9]*,[a-zA-Z0-9]+\\)$"
 #define PGMONETA_EXT_GET_BLOCKS_REGEX     "^t$"
+#define PGMONETA_EXT_RECEIVE_FILE_CHUNK_REGEX "^0$"
 
 #define PGMONETA_EXT_GET_FILE_PATH        "/pgsql/logfile"
 #define PGMONETA_EXT_GET_FILES_PATH        "/conf"
 #define PGMONETA_EXT_GET_OID_DBNAME        "mydb"
+#define PGMONETA_EXT_RECEIVE_FILE_CHUNK_PATH "/tmp/pgmoneta_ext_chunk_test.txt"
 
 static int execute_command(const char* command, char* output, size_t output_size);
 static int  regex_match(char *str, char *pattern);
@@ -140,6 +142,37 @@ START_TEST(test_pgmoneta_ext_get_blocks)
 }
 END_TEST
 
+START_TEST(test_pgmoneta_ext_receive_file_chunk)
+{
+   char output[BUFFER_SIZE] = {0};
+   char command[BUFFER_SIZE];
+
+   /* Clean up any existing test file first */
+   snprintf(command, BUFFER_SIZE, "rm -f %s", PGMONETA_EXT_RECEIVE_FILE_CHUNK_PATH);
+   execute_command(command, output, BUFFER_SIZE);
+
+   /* Successful chunk write */
+   snprintf(command, BUFFER_SIZE, "psql -h localhost -p 5432 -U repl -d postgres -t -c \"SELECT pgmoneta_ext_receive_file_chunk(encode('hello world', 'base64'), '%s');\"", PGMONETA_EXT_RECEIVE_FILE_CHUNK_PATH);
+   int result = execute_command(command, output, BUFFER_SIZE);
+   ck_assert_int_eq(result, 0);
+   ck_assert_msg(regex_match(output, PGMONETA_EXT_RECEIVE_FILE_CHUNK_REGEX) == 0, "Expected 0 from receive_file_chunk, output: %s", output);
+
+   /* Error path (invalid base64): should fail but not leak lock or file handle */
+   snprintf(command, BUFFER_SIZE, "psql -h localhost -p 5432 -U repl -d postgres -t -c \"SELECT pgmoneta_ext_receive_file_chunk('invalid base64!!!', '%s');\"", PGMONETA_EXT_RECEIVE_FILE_CHUNK_PATH);
+   execute_command(command, output, BUFFER_SIZE);
+
+   /* Subsequent write to the same file should succeed without lock conflict */
+   snprintf(command, BUFFER_SIZE, "psql -h localhost -p 5432 -U repl -d postgres -t -c \"SELECT pgmoneta_ext_receive_file_chunk(encode('more data', 'base64'), '%s');\"", PGMONETA_EXT_RECEIVE_FILE_CHUNK_PATH);
+   result = execute_command(command, output, BUFFER_SIZE);
+   ck_assert_int_eq(result, 0);
+   ck_assert_msg(regex_match(output, PGMONETA_EXT_RECEIVE_FILE_CHUNK_REGEX) == 0, "Expected 0 on retry after error, output: %s", output);
+
+   /* Clean up */
+   snprintf(command, BUFFER_SIZE, "rm -f %s", PGMONETA_EXT_RECEIVE_FILE_CHUNK_PATH);
+   execute_command(command, output, BUFFER_SIZE);
+}
+END_TEST
+
 Suite*
 pgmoneta_ext_suite(void)
 {
@@ -158,6 +191,7 @@ pgmoneta_ext_suite(void)
    tcase_add_test(tc_core, test_pgmoneta_ext_get_oid);
    tcase_add_test(tc_core, test_pgmoneta_ext_get_oids);
    tcase_add_test(tc_core, test_pgmoneta_ext_get_blocks);
+   tcase_add_test(tc_core, test_pgmoneta_ext_receive_file_chunk);
    suite_add_tcase(s, tc_core);
 
    return s;

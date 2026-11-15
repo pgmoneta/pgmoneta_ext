@@ -49,6 +49,7 @@
 #include <lib/stringinfo.h>
 #include <mb/pg_wchar.h>
 #include <miscadmin.h>
+#include <storage/fd.h>
 #include <utils/acl.h>
 #include <utils/array.h>
 #include <utils/builtins.h>
@@ -510,7 +511,7 @@ pgmoneta_ext_receive_file_chunk(PG_FUNCTION_ARGS)
 
    if (privileges & (PRIVILEGE_SUPERUSER | PRIVILEGE_PG_WRITE_SERVER_FILES))
    {
-      file = fopen(file_path, "ab");
+      file = AllocateFile(file_path, "ab");
       if (file == NULL)
       {
          ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Could not open file '%s' for writing: %m", file_path)));
@@ -520,39 +521,42 @@ pgmoneta_ext_receive_file_chunk(PG_FUNCTION_ARGS)
       fd = fileno(file);
       if (fd == -1)
       {
-         fclose(file);
+         FreeFile(file);
          ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Could not get file descriptor for '%s'", file_path)));
          PG_RETURN_INT32(1);
       }
 
       if (flock(fd, LOCK_EX | LOCK_NB) != 0)
       {
-         fclose(file);
+         FreeFile(file);
          ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: File is already locked by another thread")));
          PG_RETURN_INT32(1);
       }
 
-      decoded_data = base64_decode(base64_chunk, &decoded_len);
-      if (decoded_data == NULL)
+      PG_TRY();
       {
-         flock(fd, LOCK_UN);
-         fclose(file);
-         ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Failed to decode base64 chunk")));
-         PG_RETURN_INT32(1);
-      }
+         decoded_data = base64_decode(base64_chunk, &decoded_len);
+         if (decoded_data == NULL)
+         {
+            ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Failed to decode base64 chunk")));
+         }
 
-      if (fwrite(decoded_data, 1, decoded_len, file) != decoded_len)
+         if (fwrite(decoded_data, 1, decoded_len, file) != decoded_len)
+         {
+            ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Failed to write chunk to file")));
+         }
+      }
+      PG_CATCH();
       {
          flock(fd, LOCK_UN);
-         pfree(decoded_data);
-         fclose(file);
-         ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Failed to write chunk to file")));
-         PG_RETURN_INT32(1);
+         FreeFile(file);
+         PG_RE_THROW();
       }
+      PG_END_TRY();
 
       pfree(decoded_data);
       flock(fd, LOCK_UN);
-      fclose(file);
+      FreeFile(file);
 
       PG_RETURN_INT32(0);
    }
