@@ -40,7 +40,7 @@
 #define PGMONETA_EXT_GET_OIDS_REGEX       "^\\([1-9][0-9]*,[a-zA-Z0-9]+\\)$"
 #define PGMONETA_EXT_GET_BLOCKS_REGEX     "^t$"
 #define PGMONETA_EXT_RECEIVE_FILE_CHUNK_REGEX "^0$"
-#define PGMONETA_EXT_BASE64_ERROR_REGEX   "Failed to decode Base64 data"
+#define PGMONETA_EXT_BASE64_ERROR_REGEX   "Failed to decode base64 chunk"
 
 #define PGMONETA_EXT_GET_FILE_PATH        "/pgsql/logfile"
 #define PGMONETA_EXT_GET_FILES_PATH        "/conf"
