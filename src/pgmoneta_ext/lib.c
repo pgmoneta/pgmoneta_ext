@@ -497,11 +497,11 @@ pgmoneta_ext_receive_file_chunk(PG_FUNCTION_ARGS)
    int privileges;
    Oid roleid;
    text* base64_chunk;
-   bytea* decoded_data = NULL;
+   bytea* volatile decoded_data = NULL;
    size_t decoded_len;
    char* file_path;
-   FILE* file = NULL;
-   int fd;
+   FILE* volatile file = NULL;
+   volatile int fd = -1;
 
    base64_chunk = PG_GETARG_TEXT_PP(0);
    file_path = text_to_cstring(PG_GETARG_TEXT_PP(1));
@@ -522,6 +522,7 @@ pgmoneta_ext_receive_file_chunk(PG_FUNCTION_ARGS)
       if (fd == -1)
       {
          FreeFile(file);
+         file = NULL;
          ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Could not get file descriptor for '%s'", file_path)));
          PG_RETURN_INT32(1);
       }
@@ -529,6 +530,7 @@ pgmoneta_ext_receive_file_chunk(PG_FUNCTION_ARGS)
       if (flock(fd, LOCK_EX | LOCK_NB) != 0)
       {
          FreeFile(file);
+         file = NULL;
          ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: File is already locked by another thread")));
          PG_RETURN_INT32(1);
       }
@@ -541,22 +543,50 @@ pgmoneta_ext_receive_file_chunk(PG_FUNCTION_ARGS)
             ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Failed to decode base64 chunk")));
          }
 
-         if (fwrite(decoded_data, 1, decoded_len, file) != decoded_len)
+         if (fwrite(VARDATA(decoded_data), 1, decoded_len, file) != decoded_len)
          {
             ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Failed to write chunk to file")));
          }
       }
       PG_CATCH();
       {
-         flock(fd, LOCK_UN);
-         FreeFile(file);
+         if (decoded_data != NULL)
+         {
+            pfree(decoded_data);
+            decoded_data = NULL;
+         }
+
+         if (fd != -1)
+         {
+            if (flock(fd, LOCK_UN) != 0)
+            {
+               ereport(WARNING, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Could not unlock file '%s': %m", file_path)));
+            }
+         }
+
+         if (file != NULL)
+         {
+            FreeFile(file);
+            file = NULL;
+         }
+
          PG_RE_THROW();
       }
       PG_END_TRY();
 
       pfree(decoded_data);
-      flock(fd, LOCK_UN);
+      decoded_data = NULL;
+
+      if (flock(fd, LOCK_UN) != 0)
+      {
+         FreeFile(file);
+         file = NULL;
+         ereport(ERROR, (errmsg_internal("pgmoneta_ext_receive_file_chunk: Could not unlock file '%s': %m", file_path)));
+         PG_RETURN_INT32(1);
+      }
+
       FreeFile(file);
+      file = NULL;
 
       PG_RETURN_INT32(0);
    }

@@ -36,6 +36,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 /**
  * Set up a suite of test cases for pgmoneta_ext
