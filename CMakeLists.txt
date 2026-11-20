@@ -53,7 +53,7 @@ if (NOT CMAKE_C_COMPILER_ID IN_LIST SUPPORTED_COMPILERS)
    message(FATAL_ERROR "Unsupported compiler ${CMAKE_C_COMPILER_ID}. Supported compilers are: ${SUPPORTED_COMPILERS}")
 endif ()
 
-CHECK_C_COMPILER_FLAG("-std=c17" COMPILER_SUPPORTS_C17)
+CHECK_C_COMPILER_FLAG("-std=gnu17" COMPILER_SUPPORTS_C17)
 if(NOT COMPILER_SUPPORTS_C17)
   message(FATAL_ERROR "The compiler ${CMAKE_C_COMPILER} has no C17 support. Please use a different C compiler.")
 endif()

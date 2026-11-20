@@ -49,6 +49,7 @@
 #include <lib/stringinfo.h>
 #include <mb/pg_wchar.h>
 #include <miscadmin.h>
+#include <storage/fd.h>
 #include <utils/acl.h>
 #include <utils/array.h>
 #include <utils/builtins.h>
@@ -151,6 +152,11 @@ pgmoneta_ext_switch_wal(PG_FUNCTION_ARGS)
    PG_RETURN_DATUM(result);
 }
 
+/* PostgreSQL 19 renamed CHECKPOINT_IMMEDIATE to CHECKPOINT_FAST */
+#ifndef CHECKPOINT_FAST
+#define CHECKPOINT_FAST CHECKPOINT_IMMEDIATE
+#endif
+
 #ifndef RequestCheckpoint
 extern void RequestCheckpoint(int flags);
 #endif
@@ -176,7 +182,7 @@ pgmoneta_ext_checkpoint(PG_FUNCTION_ARGS)
    if (privileges & (PRIVILEGE_PG_CHECKPOINT | PRIVILEGE_SUPERUSER))
    {
       // Perform the checkpoint
-      RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_WAIT | CHECKPOINT_FORCE);
+      RequestCheckpoint(CHECKPOINT_FAST | CHECKPOINT_WAIT | CHECKPOINT_FORCE);
 
       values[0] = BoolGetDatum(true);
       snprintf(&cp[0], sizeof(cp), "%s", "CHECKPOINT");
